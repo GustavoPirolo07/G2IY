@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco Quiz Educativo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #e8f5e9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        #quiz-container { background: white; width: 95%; max-width: 600px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .screen { display: none; text-align: center; }
+        .active { display: block; }
+        h1, h2 { color: #2e7d32; margin-top: 0; }
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .btn-menu { padding: 20px; border: none; background: #4caf50; color: white; border-radius: 10px; cursor: pointer; font-size: 1.1rem; font-weight: bold; transition: 0.3s; }
+        .btn-menu:hover { background: #388e3c; transform: translateY(-3px); }
+        .options { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; }
+        .btn-option { padding: 15px; border: 2px solid #81c784; background: white; border-radius: 8px; cursor: pointer; transition: 0.2s; text-align: left; font-size: 1rem; }
+        .btn-option:hover { background: #f1f8e9; }
+        .correct { background: #4caf50 !important; color: white; border-color: #4caf50; }
+        .wrong { background: #f44336 !important; color: white; border-color: #f44336; }
+        #explanation-box { margin-top: 15px; padding: 15px; background: #e3f2fd; border-left: 5px solid #2196f3; border-radius: 5px; display: none; text-align: left; color: #0d47a1; font-size: 0.95rem; line-height: 1.4; }
+        .progress-bar { background: #eee; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 20px; }
+        #progress { background: #4caf50; height: 100%; width: 0%; transition: 0.3s; }
+        #restart-btn { margin-top: 20px; padding: 12px 25px; background: #2e7d32; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-leave { padding: 8px 15px; font-size: 0.9rem; background-color: #666; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px;}
+    </style>
+</head>
+<body>
+    <div id="quiz-container">
+        <div id="menu-screen" class="screen active">
+            <h1>Eco Quiz</h1>
+            <p>Aprenda sobre sustentabilidade! Escolha um tema:</p>
+            <div class="menu-grid">
+                <button class="btn-menu" onclick="startQuiz('reciclagem')">♻️ Reciclagem</button>
+                <button class="btn-menu" onclick="startQuiz('agua')">💧 Água</button>
+                <button class="btn-menu" onclick="startQuiz('energia')">⚡ Energia</button>
+                <button class="btn-menu" onclick="startQuiz('floresta')">🌳 Florestas</button>
+            </div>
+            <button class="btn-leave" onclick="window.location.href='menu.html'" style="margin-top: 25px;">Voltar ao Menu Principal</button>
+        </div>
+        <div id="question-screen" class="screen">
+            <button class="btn-leave" onclick="window.location.href='menu.html'">Abandonar Quiz</button>
+            <div class="progress-bar"><div id="progress"></div></div>
+            <h2 id="question-text"></h2>
+            <div id="options-container" class="options"></div>
+            <div id="explanation-box"></div>
+        </div>
+        <div id="result-screen" class="screen">
+            <h2>Resultado Final</h2>
+            <p id="score-text" style="font-size: 1.3rem; font-weight: bold;"></p>
+            <button id="restart-btn" onclick="window.location.href='menu.html'">Sair para o Menu Principal</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabaseClient.js"></script>
+    <script>
+        exigirLogin(); // volta ao menu se não houver sessão
+        const bancoDeQuestoes = {
+            reciclagem: [
+                { q: "Qual a cor da lixeira para plásticos?", options: ["Verde", "Azul", "Vermelho", "Amarelo"], answer: 2, explicacao: "O vermelho é para plásticos. Reciclar plástico evita que ele polua oceanos por centenas de anos." },
+                { q: "O que fazer com pilhas usadas?", options: ["Lixo comum", "Postos de coleta", "Enterrar", "Queimar"], answer: 1, explicacao: "Pilhas têm metais pesados tóxicos e exigem descarte especializado (Logística Reversa)." },
+                { q: "Qual material demora mais para sumir na natureza?", options: ["Papel", "Casca de fruta", "Vidro", "Tecido"], answer: 2, explicacao: "O vidro pode durar até 4.000 anos, mas é 100% reciclável infinitas vezes." },
+                { q: "Papel sujo de gordura é reciclável?", options: ["Sim", "Não, é rejeito", "Sim, se lavar", "Apenas papelão"], answer: 1, explicacao: "A gordura impede as fibras do papel de se ligarem no processo de reciclagem." },
+                { q: "Qual a cor da lixeira de papéis?", options: ["Azul", "Verde", "Marrom", "Cinza"], answer: 0, explicacao: "O azul é para papel e papelão limpos." }
+            ],
+            agua: [
+                { q: "Quanto da água do planeta é doce?", options: ["50%", "10%", "3%", "97%"], answer: 2, explicacao: "Apenas 3% é doce, e a maior parte está congelada em geleiras." },
+                { q: "Onde gastamos mais água em casa?", options: ["Lavar mãos", "Banho", "Beber", "Cozinhar"], answer: 1, explicacao: "O banho é o maior vilão; reduzi-lo para 5 minutos economiza muita água." },
+                { q: "O que é reuso de água cinza?", options: ["Água da chuva", "Água de banho/máquina", "Água do mar", "Água de esgoto"], answer: 1, explicacao: "Água cinza é a usada em banhos ou máquinas, ideal para descargas e limpeza." },
+                { q: "Torneira gotejando gasta quanto por mês?", options: ["10L", "100L", "1000L+", "5L"], answer: 2, explicacao: "Uma gota por segundo pode desperdiçar mais de 40 litros por dia." },
+                { q: "Qual setor consome mais água doce?", options: ["Indústria", "Uso doméstico", "Agropecuária", "Turismo"], answer: 2, explicacao: "A agropecuária usa cerca de 70% da água doce do mundo." }
+            ],
+            energia: [
+                { q: "Qual fonte NÃO é renovável?", options: ["Solar", "Eólica", "Petróleo", "Biomassa"], answer: 2, explicacao: "O petróleo é um combustível fóssil que leva milhões de anos para se formar." },
+                { q: "O que é energia fotovoltaica?", options: ["Vento", "Calor da terra", "Luz do sol", "Marés"], answer: 2, explicacao: "É a conversão direta da luz solar em eletricidade." },
+                { q: "Vantagem da lâmpada LED:", options: ["Mais barata", "Dura mais e gasta menos", "Esquenta mais", "É de vidro"], answer: 1, explicacao: "LEDs economizam até 80% de energia comparadas às incandescentes." },
+                { q: "Energia gerada por rios:", options: ["Termoelétrica", "Hidrelétrica", "Nuclear", "Eólica"], answer: 1, explicacao: "O Brasil obtém a maior parte de sua energia de usinas hidrelétricas." },
+                { q: "Selo Procel serve para:", options: ["Preço", "País de origem", "Eficiência energética", "Peso"], answer: 2, explicacao: "Ele ajuda o consumidor a escolher aparelhos que gastam menos luz." }
+            ],
+            floresta: [
+                { q: "Processo que reduz CO2:", options: ["Respiração", "Transpiração", "Fotossíntese", "Decomposição"], answer: 2, explicacao: "As plantas absorvem CO2 e liberam oxigênio durante a fotossíntese." },
+                { q: "Maior floresta tropical:", options: ["Congo", "Pantanal", "Amazônia", "Taiga"], answer: 2, explicacao: "A Amazônia é essencial para a regulação do clima em todo o continente." },
+                { q: "Reflorestamento é:", options: ["Pasto", "Plantar em áreas desmatadas", "Corte ilegal", "Incêndio"], answer: 1, explicacao: "É a recuperação de ecossistemas florestais degradados." },
+                { q: "Mata ciliar serve para:", options: ["Beleza", "Proteger rios", "Esquentar água", "Navegação"], answer: 1, explicacao: "Ela funciona como os cílios dos olhos, protegendo os rios de sedimentos." },
+                { q: "O que é biodiversidade?", options: ["Plantas", "Variedade de vida", "Fósseis", "Tecnologia"], answer: 1, explicacao: "É a riqueza e variedade de todas as formas de vida do planeta." }
+            ]
+        };
+        let perguntasRodada = [];
+        let indexAtual = 0;
+        let pontos = 0;
+        function showMenu() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('menu-screen').classList.add('active');
+        }
+        function startQuiz(cat) {
+            perguntasRodada = [...bancoDeQuestoes[cat]].sort(() => Math.random() - 0.5).slice(0, 5);
+            indexAtual = 0;
+            pontos = 0;
+            document.getElementById('menu-screen').classList.remove('active');
+            document.getElementById('question-screen').classList.add('active');
+            proximaQuestao();
+        }
+        function proximaQuestao() {
+            const q = perguntasRodada[indexAtual];
+            document.getElementById('question-text').textContent = q.q;
+            document.getElementById('explanation-box').style.display = 'none';
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+ 
+            const pct = (indexAtual / perguntasRodada.length) * 100;
+            document.getElementById('progress').style.width = pct + '%';
+ 
+            q.options.forEach((opt, i) => {
+                const b = document.createElement('button');
+                b.className = 'btn-option';
+                b.textContent = opt;
+                b.onclick = () => validar(i, b);
+                container.appendChild(b);
+            });
+        }
+        function validar(escolha, b) {
+            const q = perguntasRodada[indexAtual];
+            const btns = document.querySelectorAll('.btn-option');
+            const box = document.getElementById('explanation-box');
+            btns.forEach(btn => btn.style.pointerEvents = 'none');
+            box.textContent = q.explicacao;
+            box.style.display = 'block';
+            if (escolha === q.answer) {
+                b.classList.add('correct');
+                pontos++;
+            } else {
+                b.classList.add('wrong');
+                btns[q.answer].classList.add('correct');
+            }
+            setTimeout(() => {
+                indexAtual++;
+                if (indexAtual < perguntasRodada.length) proximaQuestao();
+                else mostrarResultado();
+            }, 4000);
+        }
+        function mostrarResultado() {
+            document.getElementById('question-screen').classList.remove('active');
+            document.getElementById('result-screen').classList.add('active');
+            document.getElementById('score-text').textContent = `Você acertou ${pontos} de 5 questões! (+${pontos * 10} pontos ecológicos)`;
+            salvarPontos(pontos * 10);
+        }
+    </script>
+</body>
+</html>
