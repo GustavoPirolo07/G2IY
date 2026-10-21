@@ -55,6 +55,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="protegerPagina.js"></script>
+    <script src="resultados.js"></script>
     <script>
         const bancoDeQuestoes = {
             reciclagem: [
@@ -62,28 +63,48 @@
                 { q: "O que fazer com pilhas usadas?", options: ["Lixo comum", "Postos de coleta", "Enterrar", "Queimar"], answer: 1, explicacao: "Pilhas têm metais pesados tóxicos e exigem descarte especializado (Logística Reversa)." },
                 { q: "Qual material demora mais para sumir na natureza?", options: ["Papel", "Casca de fruta", "Vidro", "Tecido"], answer: 2, explicacao: "O vidro pode durar até 4.000 anos, mas é 100% reciclável infinitas vezes." },
                 { q: "Papel sujo de gordura é reciclável?", options: ["Sim", "Não, é rejeito", "Sim, se lavar", "Apenas papelão"], answer: 1, explicacao: "A gordura impede as fibras do papel de se ligarem no processo de reciclagem." },
-                { q: "Qual a cor da lixeira de papéis?", options: ["Azul", "Verde", "Marrom", "Cinza"], answer: 0, explicacao: "O azul é para papel e papelão limpos." }
+                { q: "Qual a cor da lixeira de papéis?", options: ["Azul", "Verde", "Marrom", "Cinza"], answer: 0, explicacao: "O azul é para papel e papelão limpos." },
+                { q: "Qual a cor da lixeira para vidros?", options: ["Azul", "Verde", "Amarelo", "Preto"], answer: 1, explicacao: "O verde é para vidros. O vidro pode ser reciclado infinitas vezes sem perder qualidade." },
+                { q: "Qual a cor da lixeira para metais?", options: ["Amarelo", "Vermelho", "Verde", "Marrom"], answer: 0, explicacao: "O amarelo é para metais, como latas de alumínio e de aço." },
+                { q: "Onde devem ir os restos de alimentos na coleta seletiva?", options: ["Lixeira azul", "Lixeira vermelha", "Lixeira marrom (orgânicos)", "Lixeira amarela"], answer: 2, explicacao: "O marrom é para resíduos orgânicos, que podem virar adubo pela compostagem." },
+                { q: "O que é compostagem?", options: ["Queima do lixo", "Transformar resíduos orgânicos em adubo", "Separar vidros por cor", "Enterrar plásticos"], answer: 1, explicacao: "Na compostagem, restos de alimentos e folhas se decompõem e viram adubo natural." },
+                { q: "Qual dos 3 Rs deve vir primeiro, por evitar a geração de lixo?", options: ["Reciclar", "Reutilizar", "Reduzir", "Descartar"], answer: 2, explicacao: "Reduzir o consumo evita o lixo antes de ele existir, antes mesmo de reutilizar ou reciclar." }
             ],
             agua: [
                 { q: "Quanto da água do planeta é doce?", options: ["50%", "10%", "3%", "97%"], answer: 2, explicacao: "Apenas 3% é doce, e a maior parte está congelada em geleiras." },
                 { q: "Onde gastamos mais água em casa?", options: ["Lavar mãos", "Banho", "Beber", "Cozinhar"], answer: 1, explicacao: "O banho é o maior vilão; reduzi-lo para 5 minutos economiza muita água." },
                 { q: "O que é reuso de água cinza?", options: ["Água da chuva", "Água de banho/máquina", "Água do mar", "Água de esgoto"], answer: 1, explicacao: "Água cinza é a usada em banhos ou máquinas, ideal para descargas e limpeza." },
                 { q: "Torneira gotejando gasta quanto por mês?", options: ["10L", "100L", "1000L+", "5L"], answer: 2, explicacao: "Uma gota por segundo pode desperdiçar mais de 40 litros por dia." },
-                { q: "Qual setor consome mais água doce?", options: ["Indústria", "Uso doméstico", "Agropecuária", "Turismo"], answer: 2, explicacao: "A agropecuária usa cerca de 70% da água doce do mundo." }
+                { q: "Qual setor consome mais água doce?", options: ["Indústria", "Uso doméstico", "Agropecuária", "Turismo"], answer: 2, explicacao: "A agropecuária usa cerca de 70% da água doce do mundo." },
+                { q: "Qual hábito economiza água no banho?", options: ["Deixar o chuveiro correndo", "Fechar o registro enquanto se ensaboa", "Tomar banhos mais longos", "Usar a banheira todo dia"], answer: 1, explicacao: "Fechar o registro enquanto se ensaboa evita que a água corra sem uso." },
+                { q: "Como é possível reaproveitar a água da chuva?", options: ["Captando em cisternas", "Jogando no esgoto", "Misturando com óleo", "Deixando evaporar"], answer: 0, explicacao: "Cisternas armazenam a água da chuva, útil para lavar calçadas e regar plantas." },
+                { q: "Por que não se deve jogar óleo de cozinha no ralo?", options: ["Ele limpa os canos", "Não causa problema", "Entope encanamentos e contamina rios e solo", "Aquece a água"], answer: 2, explicacao: "O óleo entope a rede de esgoto e contamina a água; o certo é levá-lo a pontos de coleta para reciclagem." },
+                { q: "O que fazer com a torneira ao escovar os dentes?", options: ["Deixar aberta", "Usar só água quente", "Escovar com o chuveiro ligado", "Fechar enquanto escova"], answer: 3, explicacao: "Fechar a torneira durante a escovação economiza muitos litros de água por dia." },
+                { q: "O que é o ciclo da água?", options: ["Movimento contínuo da água entre oceanos, ar e terra", "Tratamento da água nas estações", "Congelamento dos rios", "Uso da água nas indústrias"], answer: 0, explicacao: "A água evapora, forma nuvens, cai como chuva e volta aos rios e oceanos, num ciclo contínuo." }
             ],
             energia: [
                 { q: "Qual fonte NÃO é renovável?", options: ["Solar", "Eólica", "Petróleo", "Biomassa"], answer: 2, explicacao: "O petróleo é um combustível fóssil que leva milhões de anos para se formar." },
                 { q: "O que é energia fotovoltaica?", options: ["Vento", "Calor da terra", "Luz do sol", "Marés"], answer: 2, explicacao: "É a conversão direta da luz solar em eletricidade." },
                 { q: "Vantagem da lâmpada LED:", options: ["Mais barata", "Dura mais e gasta menos", "Esquenta mais", "É de vidro"], answer: 1, explicacao: "LEDs economizam até 80% de energia comparadas às incandescentes." },
                 { q: "Energia gerada por rios:", options: ["Termoelétrica", "Hidrelétrica", "Nuclear", "Eólica"], answer: 1, explicacao: "O Brasil obtém a maior parte de sua energia de usinas hidrelétricas." },
-                { q: "Selo Procel serve para:", options: ["Preço", "País de origem", "Eficiência energética", "Peso"], answer: 2, explicacao: "Ele ajuda o consumidor a escolher aparelhos que gastam menos luz." }
+                { q: "Selo Procel serve para:", options: ["Preço", "País de origem", "Eficiência energética", "Peso"], answer: 2, explicacao: "Ele ajuda o consumidor a escolher aparelhos que gastam menos luz." },
+                { q: "Qual energia é gerada a partir do vento?", options: ["Solar", "Eólica", "Hidrelétrica", "Nuclear"], answer: 1, explicacao: "Turbinas eólicas transformam o movimento do vento em eletricidade." },
+                { q: "Qual atitude ajuda a economizar energia em casa?", options: ["Deixar luzes acesas", "Manter aparelhos ligados sem uso", "Apagar a luz ao sair do cômodo", "Abrir a geladeira várias vezes"], answer: 2, explicacao: "Apagar a luz ao sair é um hábito simples que reduz o consumo e a conta." },
+                { q: "O que é o modo stand-by de um aparelho?", options: ["Desligado por completo", "Ligado em espera, ainda consumindo energia", "Modo de economia gratuita", "Aparelho quebrado"], answer: 1, explicacao: "Aparelhos em espera continuam gastando energia; o ideal é desligá-los da tomada quando não for usar." },
+                { q: "Aproveitar a luz natural durante o dia ajuda a:", options: ["Aumentar o consumo", "Esquentar a casa", "Reduzir o consumo de eletricidade", "Gastar mais lâmpadas"], answer: 2, explicacao: "Com luz natural, é possível manter as lâmpadas apagadas durante o dia." },
+                { q: "O que é eficiência energética?", options: ["Usar mais energia", "Produzir energia em casa", "Trocar de empresa de energia", "Fazer o mesmo trabalho gastando menos energia"], answer: 3, explicacao: "Equipamentos eficientes entregam o mesmo resultado consumindo menos energia." }
             ],
             floresta: [
                 { q: "Processo que reduz CO2:", options: ["Respiração", "Transpiração", "Fotossíntese", "Decomposição"], answer: 2, explicacao: "As plantas absorvem CO2 e liberam oxigênio durante a fotossíntese." },
                 { q: "Maior floresta tropical:", options: ["Congo", "Pantanal", "Amazônia", "Taiga"], answer: 2, explicacao: "A Amazônia é essencial para a regulação do clima em todo o continente." },
                 { q: "Reflorestamento é:", options: ["Pasto", "Plantar em áreas desmatadas", "Corte ilegal", "Incêndio"], answer: 1, explicacao: "É a recuperação de ecossistemas florestais degradados." },
                 { q: "Mata ciliar serve para:", options: ["Beleza", "Proteger rios", "Esquentar água", "Navegação"], answer: 1, explicacao: "Ela funciona como os cílios dos olhos, protegendo os rios de sedimentos." },
-                { q: "O que é biodiversidade?", options: ["Plantas", "Variedade de vida", "Fósseis", "Tecnologia"], answer: 1, explicacao: "É a riqueza e variedade de todas as formas de vida do planeta." }
+                { q: "O que é biodiversidade?", options: ["Plantas", "Variedade de vida", "Fósseis", "Tecnologia"], answer: 1, explicacao: "É a riqueza e variedade de todas as formas de vida do planeta." },
+                { q: "Qual destes é um bioma brasileiro?", options: ["Savana africana", "Tundra", "Cerrado", "Deserto do Saara"], answer: 2, explicacao: "O Cerrado é um dos biomas do Brasil, junto com Amazônia, Mata Atlântica, Caatinga, Pampa e Pantanal." },
+                { q: "Qual bioma brasileiro é um dos mais ricos em espécies e já perdeu grande parte da área original?", options: ["Mata Atlântica", "Pampa", "Caatinga", "Pantanal"], answer: 0, explicacao: "A Mata Atlântica abriga muitas espécies e foi muito reduzida pelo desmatamento ao longo dos séculos." },
+                { q: "Qual é uma consequência do desmatamento?", options: ["Mais biodiversidade", "Perda de habitat dos animais", "Ar mais limpo", "Mais água nos rios"], answer: 1, explicacao: "Sem as florestas, muitos animais perdem o lugar onde vivem e se alimentam." },
+                { q: "O que são unidades de conservação?", options: ["Fábricas ecológicas", "Depósitos de lixo", "Áreas protegidas por lei para preservar a natureza", "Parques de diversão"], answer: 2, explicacao: "Parques nacionais e reservas são exemplos de áreas protegidas para conservar a natureza." },
+                { q: "Qual atitude ajuda a proteger as florestas?", options: ["Queimar áreas de mata", "Comprar madeira de origem legal", "Caçar animais silvestres", "Jogar lixo na mata"], answer: 1, explicacao: "Preferir madeira de origem legal reduz a demanda por desmatamento ilegal." }
             ]
         };
         let perguntasRodada = [];
@@ -94,7 +115,7 @@
             document.getElementById('menu-screen').classList.add('active');
         }
         function startQuiz(cat) {
-            perguntasRodada = [...bancoDeQuestoes[cat]].sort(() => Math.random() - 0.5).slice(0, 5);
+            perguntasRodada = [...bancoDeQuestoes[cat]].sort(() => Math.random() - 0.5).slice(0, 10);
             indexAtual = 0;
             pontos = 0;
             document.getElementById('menu-screen').classList.remove('active');
@@ -142,8 +163,8 @@
         function mostrarResultado() {
             document.getElementById('question-screen').classList.remove('active');
             document.getElementById('result-screen').classList.add('active');
-            document.getElementById('score-text').textContent = `Você acertou ${pontos} de 5 questões! (+${pontos * 10} pontos ecológicos)`;
-            salvarPontos(pontos * 10);
+            document.getElementById('score-text').textContent = `Você acertou ${pontos} de ${perguntasRodada.length} questões! (+${pontos * 10} pontos ecológicos)`;
+            registrarResultado('quiz', pontos * 10);
         }
     </script>
 </body>

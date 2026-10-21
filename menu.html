@@ -26,6 +26,7 @@
         .btn-submit:disabled {opacity: 0.6; cursor: wait;}
         .toggle-link {margin-top: 20px; font-size: 0.9rem; color: #558b2f;}
         .toggle-link span { color: var(--primary-color); text-decoration: underline; cursor: pointer; font-weight: 600;}
+        .game-best {font-size: 0.8rem; font-weight: 600; color: #33691e; margin-top: 2px;}
         /* Validação visual dos campos */
         .input-group input.invalid {border-color: var(--error-color); background: #fff5f5;}
         .input-group input.valid {border-color: #4caf50;}
@@ -106,13 +107,15 @@
                     <div class="game-info">
                         <span class="game-title">🔍 Eco Caça-Palavras</span>
                         <span class="game-desc">Encontre os termos ambientais ocultos</span>
+                        <span class="game-best" id="best-caca_palavras">🏆 Melhor pontuação: — · ⏱️ Menor tempo: —</span>
                     </div>
                     <span class="game-icon">➔</span>
                 </a>
                 <a href="ecoAdivinhacao.html" class="game-card">
                     <div class="game-info">
                         <span class="game-title">💡 Eco Adivinhação</span>
-                        <span class="game-desc">Descubra a palavra secreta em 6 tentativas</span>
+                        <span class="game-desc">Descubra a palavra secreta em 5 tentativas</span>
+                        <span class="game-best" id="best-adivinhacao">🏆 Melhor pontuação: —</span>
                     </div>
                     <span class="game-icon">➔</span>
                 </a>
@@ -120,6 +123,7 @@
                     <div class="game-info">
                         <span class="game-title">♻️ Eco Quiz Educativo</span>
                         <span class="game-desc">Teste seus conhecimentos sobre reciclagem e biomas</span>
+                        <span class="game-best" id="best-quiz">🏆 Melhor pontuação: —</span>
                     </div>
                     <span class="game-icon">➔</span>
                 </a>
@@ -131,6 +135,7 @@
     <!-- Supabase: biblioteca + cliente configurado -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
+    <script src="resultados.js"></script>
     <script>
         async function atualizarPontuacao() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -141,10 +146,24 @@
             if (data) document.getElementById('score-display').textContent = `🌱 Pontuação ecológica: ${data.pontuacao_ecologica}`;
         }
 
+async function atualizarMelhores() {
+            const melhores = await carregarMelhoresResultados();
+            ['caca_palavras', 'adivinhacao', 'quiz'].forEach(jogo => {
+                const el = document.getElementById('best-' + jogo);
+                const r = melhores[jogo];
+                let texto = `🏆 Melhor pontuação: ${r ? r.melhor_pontuacao + ' pts' : '—'}`;
+                if (jogo === 'caca_palavras') {
+                    texto += ` · ⏱️ Menor tempo: ${r && r.melhor_tempo_segundos ? r.melhor_tempo_segundos + 's' : '—'}`;
+                }
+                el.textContent = texto;
+            });
+        }
+
         function mostrarMenu(usuario) {
             document.getElementById('welcome-text').textContent = `Olá, ${usuario}! Escolha um jogo para começar:`;
             switchScreen('menu-screen');
             atualizarPontuacao();
+            atualizarMelhores();
         }
 
         // VERIFICAÇÃO DE SESSÃO ATIVA (a sessão fica gerenciada pelo Supabase)
@@ -154,6 +173,14 @@
                 mostrarMenu(session.user.user_metadata.nome_usuario || 'jogador');
             } else {
                 switchScreen('login-screen');
+            }
+        });
+
+// Ao voltar de um jogo pelo botão "voltar" do navegador, atualiza os números
+        window.addEventListener('pageshow', e => {
+            if (e.persisted && document.getElementById('menu-screen').classList.contains('active')) {
+                atualizarPontuacao();
+                atualizarMelhores();
             }
         });
 

@@ -11,7 +11,7 @@
         .controls { display: flex; gap: 15px; margin-top: 5px; margin-bottom: 10px; }
         button {padding: 10px 20px; font-size: 1rem; background-color: #2e7d32; color: white; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s;}
         button:hover { background-color: #1b5e20; }
-        #game-board { display: grid; grid-template-rows: repeat(6, 1fr); gap: 5px; margin-top: 20px; }
+        #game-board { display: grid; grid-template-rows: repeat(5, 1fr); gap: 5px; margin-top: 20px; }
         .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
         .tile { width: 50px; height: 50px; border: 2px solid #3a3a3c; display: flex; justify-content: center; align-items: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; }
         .correct { background-color: #538d4e; border-color: #538d4e; }
@@ -34,12 +34,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="protegerPagina.js"></script>
+    <script src="resultados.js"></script>
     <script>
         const listaDePalavras = ["VIDRO", "LATAS", "PAPEL", "MUNDO", "CLIMA", "BIOMA", "CHUVA", "MATAS", "METAL", "PAMPA", "NUVEM", "SOLAR", "VERDE", "TERRA", "LIMPO", "ÁGUAS", "VIVER", "FAUNA", "FLORA", "LIXOS"];
         const word = listaDePalavras[Math.floor(Math.random() * listaDePalavras.length)];
         let attempts = 0;
         let acabou = false;
-        const maxAttempts = 6;
+        const maxAttempts = 5;
         const board = document.getElementById("game-board");
         for (let i = 0; i < maxAttempts; i++) {
             let row = document.createElement("div");
@@ -86,13 +87,13 @@
             input.value = "";
             if (guess === word) {
                 acabou = true;
-                const pontos = (maxAttempts + 1 - attempts) * 10;
-                salvarPontos(pontos);
-                return alert("Você venceu! +" + pontos + " pontos ecológicos");
+                const pontos = 100 - attempts * 10; // 1ª tentativa = 90, perde 10 por tentativa extra
+                return registrarResultado('adivinhacao', pontos).finally(() =>
+                    alert("Você venceu! +" + pontos + " pontos ecológicos"));
             }
             if (attempts === maxAttempts) {
                 acabou = true;
-                alert("Fim de jogo! A palavra era: " + word);
+                alert("Fim de jogo! A palavra era: " + word + ". Nesta rodada você não recebeu pontos.");
             }
         }
     </script>

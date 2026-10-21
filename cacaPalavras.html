@@ -34,6 +34,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="protegerPagina.js"></script>
+    <script src="resultados.js"></script>
     <script>
         const bancoDePalavras = ["RECICLAR", "REUTILIZAR", "REDUZIR", "CLIMA", "VERDE", "POLUICAO", "ENERGIA", "AMBIENTE", "FLORA", "FAUNA", "OZONIO", "LIXO", "EOLICA", "MUNDO", "HORTA", "PLANO", "FOLHA"];
         const size = 10;
@@ -43,6 +44,10 @@
         let seconds = 0;
         let timerIdx = null;
         let jogoFinalizado = false;
+        // 50 pontos de base + bônus de até 50: 100 com 40s ou menos, perde 1 ponto por segundo, 50 com 90s ou mais
+        function calcularPontos(segundos) {
+            return 50 + Math.min(50, Math.max(0, 90 - segundos));
+        }
         function initGame() {
             clearInterval(timerIdx);
             seconds = 0;
@@ -139,8 +144,9 @@
             if (wordsInfo.length > 0 && foundCount === wordsInfo.length && !jogoFinalizado) {
                 jogoFinalizado = true;
                 clearInterval(timerIdx);
-                salvarPontos(50);
-                setTimeout(() => alert(`Parabéns! Você encontrou as palavras em ${seconds} segundos! +50 pontos ecológicos`), 200);
+                const pontos = calcularPontos(seconds);
+                registrarResultado('caca_palavras', pontos, Math.max(1, seconds)).finally(() =>
+                    alert(`Parabéns! Você encontrou as palavras em ${seconds} segundos! +${pontos} pontos ecológicos`));
             }
         }
         initGame();
