@@ -27,6 +27,24 @@
         .toggle-link {margin-top: 20px; font-size: 0.9rem; color: #558b2f;}
         .toggle-link span { color: var(--primary-color); text-decoration: underline; cursor: pointer; font-weight: 600;}
         .game-best {font-size: 0.8rem; font-weight: 600; color: #33691e; margin-top: 2px;}
+        /* Aba lateral: Minha conta */
+        .menu-topo {display: flex; justify-content: flex-end; margin-bottom: 10px;}
+        .btn-conta {background: var(--card-bg); border: 2px solid var(--card-border); color: var(--primary-color); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: 0.2s;}
+        .btn-conta:hover {background: #c8e6c9;}
+        .conta-overlay {position: fixed; inset: 0; background: rgba(27, 94, 32, 0.4); opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 900;}
+        .conta-overlay.aberta {opacity: 1; pointer-events: auto;}
+        .conta-drawer {position: fixed; top: 0; bottom: 0; left: 0; width: min(380px, 92vw); background: #fff; box-shadow: 4px 0 24px rgba(0,0,0,0.2); transform: translateX(-105%); visibility: hidden; transition: transform 0.3s ease, visibility 0s linear 0.3s; z-index: 1000; display: flex; flex-direction: column; text-align: left;}
+        .conta-drawer.aberta {transform: none; visibility: visible; transition: transform 0.3s ease, visibility 0s;}
+        .conta-header {display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 2px solid var(--card-bg);}
+        .conta-header h2 {font-size: 1.25rem; color: var(--primary-color);}
+        .conta-fechar {background: none; border: none; font-size: 1.3rem; color: #558b2f; cursor: pointer; padding: 6px 10px; border-radius: 8px;}
+        .conta-fechar:hover {background: var(--card-bg);}
+        .conta-body {flex: 1; overflow-y: auto; padding: 8px 20px 30px;}
+        .conta-secao {padding-top: 18px; margin-top: 6px;}
+        .conta-secao + .conta-secao {border-top: 2px solid var(--card-bg); margin-top: 22px;}
+        .conta-secao h3 {font-size: 1rem; color: var(--primary-color); margin-bottom: 12px;}
+        .conta-linha {display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #c8e6c9; font-size: 0.92rem; color: #558b2f;}
+        .conta-linha strong {color: var(--text-color); text-align: right; word-break: break-all;}
         /* Validação visual dos campos */
         .input-group input.invalid {border-color: var(--error-color); background: #fff5f5;}
         .input-group input.valid {border-color: #4caf50;}
@@ -99,6 +117,9 @@
             </div>
         </div>
         <div id="menu-screen" class="screen">
+            <div class="menu-topo">
+                <button type="button" class="btn-conta" onclick="abrirConta()">👤 Minha conta</button>
+            </div>
             <h1>Menu Eco</h1>
             <p id="welcome-text" style="margin-bottom: 8px;">Olá! Escolha um jogo para começar:</p>
             <p id="score-display" style="font-weight: 700; margin-bottom: 20px;"></p>
@@ -131,6 +152,58 @@
             <button class="btn-logout" onclick="handleLogout()">Sair da Conta</button>
         </div>
     </div>
+
+    <!-- Aba lateral: Minha conta -->
+    <div id="conta-overlay" class="conta-overlay" onclick="fecharConta()"></div>
+    <aside id="conta-drawer" class="conta-drawer" role="dialog" aria-modal="true" aria-labelledby="conta-titulo" aria-hidden="true">
+        <div class="conta-header">
+            <h2 id="conta-titulo">👤 Minha conta</h2>
+            <button type="button" id="conta-fechar" class="conta-fechar" onclick="fecharConta()" aria-label="Fechar">✕</button>
+        </div>
+        <div class="conta-body">
+            <section class="conta-secao">
+                <h3>Dados do usuário</h3>
+                <div class="conta-linha"><span>Usuário</span><strong id="conta-nome">—</strong></div>
+                <div class="conta-linha"><span>E-mail</span><strong id="conta-email">—</strong></div>
+                <div class="conta-linha"><span>Pontuação ecológica</span><strong id="conta-pontos">—</strong></div>
+                <div class="conta-linha"><span>Membro desde</span><strong id="conta-desde">—</strong></div>
+            </section>
+            <section class="conta-secao">
+                <h3>Alterar nome de usuário</h3>
+                <form onsubmit="salvarNome(event)" novalidate>
+                    <div class="input-group">
+                        <label for="conta-novo-nome">Novo nome de usuário</label>
+                        <input type="text" id="conta-novo-nome" maxlength="30" placeholder="Como você quer ser chamado" autocomplete="off">
+                        <div class="field-hint" id="conta-novo-nome-hint"></div>
+                    </div>
+                    <button type="submit" id="conta-nome-btn" class="btn-submit">Salvar nome</button>
+                    <div id="conta-nome-msg" class="message"></div>
+                </form>
+            </section>
+            <section class="conta-secao">
+                <h3>Alterar senha</h3>
+                <form onsubmit="salvarSenha(event)" novalidate>
+                    <div class="input-group">
+                        <label for="conta-senha-atual">Senha atual</label>
+                        <input type="password" id="conta-senha-atual" placeholder="Sua senha atual" autocomplete="current-password">
+                        <div class="field-hint" id="conta-senha-atual-hint"></div>
+                    </div>
+                    <div class="input-group">
+                        <label for="conta-senha-nova">Nova senha</label>
+                        <input type="password" id="conta-senha-nova" placeholder="Crie uma nova senha" autocomplete="new-password">
+                        <div class="field-hint" id="conta-senha-nova-hint" data-padrao="Mínimo de 8 caracteres, com letras e números.">Mínimo de 8 caracteres, com letras e números.</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="conta-senha-confirma">Confirmar nova senha</label>
+                        <input type="password" id="conta-senha-confirma" placeholder="Repita a nova senha" autocomplete="new-password">
+                        <div class="field-hint" id="conta-senha-confirma-hint"></div>
+                    </div>
+                    <button type="submit" id="conta-senha-btn" class="btn-submit">Alterar senha</button>
+                    <div id="conta-senha-msg" class="message"></div>
+                </form>
+            </section>
+        </div>
+    </aside>
 
     <!-- Supabase: biblioteca + cliente configurado -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -188,6 +261,7 @@ async function atualizarMelhores() {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.message').forEach(m => m.style.display = 'none');
             limparValidacao();
+            fecharConta();
             document.getElementById(screenId).classList.add('active');
         }
 
@@ -200,7 +274,11 @@ async function atualizarMelhores() {
             'login-password': v => v ? '' : 'Digite sua senha.',
             'reg-email':      v => EMAIL_RE.test(v.trim()) ? '' : 'Digite um e-mail válido, como nome@email.com.',
             'reg-username':   v => v.trim() ? '' : 'Escolha um nome de usuário.',
-            'reg-password':   v => SENHA_RE.test(v) ? '' : 'A senha precisa ter pelo menos 8 caracteres, com letras e números.'
+            'reg-password':   v => SENHA_RE.test(v) ? '' : 'A senha precisa ter pelo menos 8 caracteres, com letras e números.',
+            'conta-novo-nome':     v => v.trim() ? '' : 'Digite o novo nome de usuário.',
+            'conta-senha-atual':   v => v ? '' : 'Digite sua senha atual.',
+            'conta-senha-nova':    v => SENHA_RE.test(v) ? '' : 'A senha precisa ter pelo menos 8 caracteres, com letras e números.',
+            'conta-senha-confirma': v => v === document.getElementById('conta-senha-nova').value ? '' : 'As senhas não coincidem.'
         };
 
         function marcarCampo(id, msg) {
@@ -235,8 +313,10 @@ async function atualizarMelhores() {
             const el = document.getElementById(id);
             el.addEventListener('blur', () => { el.dataset.tocado = '1'; validarCampo(id); });
             el.addEventListener('input', () => {
-                const aviso = document.getElementById(id.startsWith('login') ? 'login-error' : 'reg-error');
-                aviso.style.display = 'none';
+                const avisoId = id.startsWith('login') ? 'login-error'
+                    : id.startsWith('reg') ? 'reg-error'
+                    : id === 'conta-novo-nome' ? 'conta-nome-msg' : 'conta-senha-msg';
+                document.getElementById(avisoId).style.display = 'none';
                 if (el.dataset.tocado) validarCampo(id);
                 else el.classList.remove('invalid');
             });
@@ -326,6 +406,158 @@ async function atualizarMelhores() {
             document.getElementById('reg-password').value = '';
             limparValidacao();
             setTimeout(() => switchScreen('login-screen'), 1500);
+        }
+
+        // ---------- Aba lateral: Minha conta ----------
+        let contaUsuario = null; // { id, email, nome }
+
+        // Se a nova senha mudar depois de confirmada, revalida a confirmação
+        document.getElementById('conta-senha-nova').addEventListener('input', () => {
+            const conf = document.getElementById('conta-senha-confirma');
+            if (conf.dataset.tocado) validarCampo('conta-senha-confirma');
+        });
+
+        function mostrarMsgConta(id, texto, ok) {
+            const el = document.getElementById(id);
+            el.textContent = texto;
+            el.className = 'message ' + (ok ? 'success' : 'error');
+            el.style.display = 'block';
+        }
+
+        function resetarFormsConta() {
+            ['conta-novo-nome', 'conta-senha-atual', 'conta-senha-nova', 'conta-senha-confirma']
+                .forEach(id => { document.getElementById(id).value = ''; });
+            ['conta-nome-msg', 'conta-senha-msg'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+            limparValidacao();
+        }
+
+        async function carregarDadosConta() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return;
+            const user = session.user;
+            const { data: perfil } = await supabaseClient
+                .from('perfis_jogadores').select('nome_usuario, pontuacao_ecologica')
+                .eq('id', user.id).single();
+            contaUsuario = {
+                id: user.id,
+                email: user.email,
+                nome: (perfil && perfil.nome_usuario) || user.user_metadata.nome_usuario || ''
+            };
+            document.getElementById('conta-nome').textContent = contaUsuario.nome || '—';
+            document.getElementById('conta-email').textContent = user.email;
+            document.getElementById('conta-pontos').textContent = perfil ? perfil.pontuacao_ecologica : '—';
+            document.getElementById('conta-desde').textContent =
+                user.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '—';
+        }
+
+        async function abrirConta() {
+            document.getElementById('conta-overlay').classList.add('aberta');
+            const drawer = document.getElementById('conta-drawer');
+            drawer.classList.add('aberta');
+            drawer.setAttribute('aria-hidden', 'false');
+            document.getElementById('conta-fechar').focus();
+            await carregarDadosConta();
+        }
+
+        function fecharConta() {
+            document.getElementById('conta-overlay').classList.remove('aberta');
+            const drawer = document.getElementById('conta-drawer');
+            drawer.classList.remove('aberta');
+            drawer.setAttribute('aria-hidden', 'true');
+            resetarFormsConta();
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharConta(); });
+
+        // Alterar nome de usuário (perfil no banco + dados da conta)
+        async function salvarNome(event) {
+            event.preventDefault();
+            const id = 'conta-novo-nome';
+            document.getElementById('conta-nome-msg').style.display = 'none';
+            document.getElementById(id).dataset.tocado = '1';
+            if (!validarCampo(id)) { document.getElementById(id).focus(); return; }
+
+            const novo = document.getElementById(id).value.trim();
+            if (!contaUsuario) await carregarDadosConta();
+            if (!contaUsuario) { mostrarMsgConta('conta-nome-msg', 'Sessão expirada. Entre novamente.', false); return; }
+            if (novo === contaUsuario.nome) { marcarCampo(id, 'Esse já é o seu nome de usuário.'); return; }
+
+            const btn = document.getElementById('conta-nome-btn');
+            btn.disabled = true;
+            const { data, error } = await supabaseClient
+                .from('perfis_jogadores').update({ nome_usuario: novo })
+                .eq('id', contaUsuario.id).select('nome_usuario');
+            if (error || !data || data.length === 0) {
+                btn.disabled = false;
+                if (error && error.code === '23505') marcarCampo(id, 'Este nome de usuário já está em uso.');
+                else mostrarMsgConta('conta-nome-msg', 'Não foi possível alterar o nome' + (error ? ': ' + error.message : '.'), false);
+                return;
+            }
+            await supabaseClient.auth.updateUser({ data: { nome_usuario: novo } });
+            btn.disabled = false;
+
+            contaUsuario.nome = novo;
+            document.getElementById('conta-nome').textContent = novo;
+            document.getElementById('welcome-text').textContent = `Olá, ${novo}! Escolha um jogo para começar:`;
+            document.getElementById(id).value = '';
+            delete document.getElementById(id).dataset.tocado;
+            marcarCampo(id, '');
+            document.getElementById(id).classList.remove('valid');
+            mostrarMsgConta('conta-nome-msg', 'Nome de usuário alterado com sucesso!', true);
+        }
+
+        // Alterar senha: confere a senha atual (novo login) antes de gravar a nova
+        async function salvarSenha(event) {
+            event.preventDefault();
+            const ids = ['conta-senha-atual', 'conta-senha-nova', 'conta-senha-confirma'];
+            document.getElementById('conta-senha-msg').style.display = 'none';
+            const resultados = ids.map(id => { document.getElementById(id).dataset.tocado = '1'; return validarCampo(id); });
+            if (resultados.includes(false)) {
+                document.querySelector('#conta-drawer input.invalid').focus();
+                return;
+            }
+
+            const atual = document.getElementById('conta-senha-atual').value;
+            const nova = document.getElementById('conta-senha-nova').value;
+            if (atual === nova) { marcarCampo('conta-senha-nova', 'A nova senha deve ser diferente da atual.'); return; }
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { mostrarMsgConta('conta-senha-msg', 'Sessão expirada. Entre novamente.', false); return; }
+
+            const btn = document.getElementById('conta-senha-btn');
+            btn.disabled = true;
+
+            const { error: erroAtual } = await supabaseClient.auth.signInWithPassword({
+                email: session.user.email,
+                password: atual
+            });
+            if (erroAtual) {
+                btn.disabled = false;
+                marcarCampo('conta-senha-atual', 'Senha atual incorreta.');
+                document.getElementById('conta-senha-atual').focus();
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.updateUser({ password: nova });
+            btn.disabled = false;
+            if (error) {
+                if (error.code === 'weak_password' || /password/i.test(error.message)) {
+                    marcarCampo('conta-senha-nova', error.code === 'same_password'
+                        ? 'A nova senha deve ser diferente da atual.'
+                        : 'Senha fraca: use pelo menos 8 caracteres, com letras e números.');
+                } else {
+                    mostrarMsgConta('conta-senha-msg', 'Não foi possível alterar a senha: ' + error.message, false);
+                }
+                return;
+            }
+
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                el.value = '';
+                delete el.dataset.tocado;
+            });
+            limparValidacao();
+            mostrarMsgConta('conta-senha-msg', 'Senha alterada com sucesso!', true);
         }
 
         // LOGOUT COMPLETO

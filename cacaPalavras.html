@@ -6,14 +6,20 @@
     <title>Eco Caça-Palavras</title>
     <style>
         body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
-        :root { --size: 12; --cell: min(40px, calc((100vw - 130px) / 12)); }
-        body {font-family: 'Segoe UI', sans-serif; background: whitesmoke; color: #2e7d32; display: flex; flex-direction: column; align-items: center; padding: 20px;}
-        .controls {display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; align-items: center; margin-bottom: 20px;}
+        :root {
+            --size: 12;
+            /* celular: a grade ocupa a largura da tela */
+            --cell: min(40px, calc((100vw - 70px) / 12));
+        }
+        * { box-sizing: border-box; }
+        body {font-family: 'Segoe UI', sans-serif; background: whitesmoke; color: #2e7d32; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 10px;}
+        h1 { text-align: center; font-size: 1.5rem; margin: 10px 0; }
+        .controls {display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 20px; align-items: center; margin-bottom: 12px;}
         button {padding: 10px 20px; font-size: 1rem; background-color: #2e7d32; color: white; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s;}
         button:hover { background-color: #1b5e20; }
-        .game-container {display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 30px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);}
-        #grid { display: grid; grid-template-columns: repeat(var(--size), var(--cell)); gap: 2px; background: #a5d6a7; padding: 5px; border-radius: 8px; touch-action: none; user-select: none; -webkit-user-select: none;}
-        .cell {width: var(--cell); height: var(--cell); background: #fff; display: flex; justify-content: center; align-items: center; font-size: calc(var(--cell) * 0.45); font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none;}
+        .game-container {display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 16px; background: white; padding: 12px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 100%;}
+        #grid { display: grid; grid-template-columns: repeat(var(--size), var(--cell)); gap: 1px; background: #a5d6a7; padding: 3px; border-radius: 8px; touch-action: manipulation; user-select: none; -webkit-user-select: none;}
+        .cell {width: var(--cell); height: var(--cell); background: #fff; display: flex; justify-content: center; align-items: center; font-size: calc(var(--cell) * 0.5); font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none;}
         .cell.selected, .cell.preview { background: #fff59d; }
         .cell.found { background: #4caf50 !important; color: white; }
         .cell.errado { background: #ffcdd2 !important; animation: tremer 0.3s; }
@@ -21,8 +27,21 @@
         #word-list { display: flex; flex-direction: column; gap: 8px; min-width: 150px; }
         .word-item { padding: 8px; border-left: 5px solid #81c784; background: #f1f8e9; border-radius: 0 5px 5px 0; font-weight: 600; text-transform: uppercase; }
         .word-found { text-decoration: line-through; background: #c8e6c9; color: #81c784; border-color: #c8e6c9; }
-        #timer { font-size: 1.5rem; font-weight: bold; }
-        .dica { font-size: 0.85rem; color: #558b2f; margin: 0 0 15px; text-align: center; max-width: 560px; }
+        #timer { font-size: 1.3rem; font-weight: bold; }
+        .dica { font-size: 0.8rem; color: #558b2f; margin: 0 0 12px; text-align: center; max-width: 560px; line-height: 1.4; }
+
+        /* computador: aproveita mais a tela */
+        @media (min-width: 601px) {
+            :root { --cell: max(34px, min(52px, calc((100svh - 250px) / 12), calc((100vw - 112px) / 12))); }
+            body { padding: 20px; }
+            h1 { font-size: 2rem; margin: 18px 0 12px; }
+            .game-container { gap: 32px; padding: 24px; }
+            #grid { gap: 2px; padding: 5px; }
+            #word-list { min-width: 190px; gap: 10px; }
+            .word-item { font-size: 1.05rem; padding: 10px; }
+            #timer { font-size: 1.5rem; }
+            .dica { font-size: 0.9rem; margin-bottom: 15px; }
+        }
     </style>
 </head>
 <body>
@@ -32,7 +51,7 @@
         <button onclick="initGame()">Novo Jogo</button>
         <button onclick="window.location.href='menu.html'" style="background-color: #666;">Voltar ao Menu</button>
     </div>
-    <p class="dica">Toque na primeira e na última letra da palavra (ou arraste de uma ponta à outra). As palavras podem estar em qualquer direção, inclusive na diagonal e de trás para frente.</p>
+    <p class="dica">Toque na primeira e na última letra da palavra (no computador, também dá para arrastar de uma ponta à outra). As palavras podem estar em qualquer direção, inclusive na diagonal e de trás para frente.</p>
     <div class="game-container">
         <div id="grid"></div>
         <div id="word-list"></div>
@@ -71,9 +90,15 @@
             return a;
         }
 
-        // 50 pontos de base + bônus de até 50: 100 com 40s ou menos, perde 1 ponto por segundo, 50 com 90s ou mais
+        // Pontuação: 60 pontos de base + bônus de até 40 pelo tempo.
+        // Até 90s = 100 pontos; o bônus cai de forma proporcional até 300s, quando restam só os 60 pontos da base.
+        const PONTOS_BASE = 60;
+        const PONTOS_MAXIMOS = 100;
+        const TEMPO_BONUS_TOTAL = 90;   // segundos
+        const TEMPO_SEM_BONUS = 300;    // segundos
         function calcularPontos(segundos) {
-            return 50 + Math.min(50, Math.max(0, 90 - segundos));
+            const fracao = Math.min(1, Math.max(0, (TEMPO_SEM_BONUS - segundos) / (TEMPO_SEM_BONUS - TEMPO_BONUS_TOTAL)));
+            return PONTOS_BASE + Math.round((PONTOS_MAXIMOS - PONTOS_BASE) * fracao);
         }
 
         // Posiciona as palavras (maiores primeiro) em qualquer uma das 8 direções; refaz a grade se alguma não couber
@@ -250,7 +275,7 @@
                 titulo: 'Parabéns!',
                 mensagem: 'Você encontrou todas as palavras!',
                 pontos,
-                detalhes: [`Tempo: ${seconds}s`, `Base: 50 pontos + bônus de tempo: ${pontos - 50}`],
+                detalhes: [`Tempo: ${seconds}s`, `Base: ${PONTOS_BASE} pontos + bônus de tempo: ${pontos - PONTOS_BASE}`],
                 onJogarNovamente: initGame
             }));
         }

@@ -6,22 +6,42 @@
     <title>Aventura da Advinhação</title>
     <style>
         body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
-        body {font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: whitesmoke; color: #2e7d32; }
-        h1 {margin-top: 20px;}
-        .controls { display: flex; gap: 15px; margin-top: 5px; margin-bottom: 10px; }
+        :root {
+            --gap: 6px;
+            --sobra: 360px; /* espaço ocupado por título, botões, campo e margens */
+            --tile: min(76px, calc((100vw - 84px) / 5));
+        }
+        /* o tabuleiro se ajusta à altura da tela para caber sem rolar */
+        @supports (height: 100svh) {
+            :root { --tile: max(38px, min(76px, calc((100vw - 84px) / 5), calc((100svh - var(--sobra)) / 5))); }
+        }
+        * { box-sizing: border-box; }
+        body {font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: whitesmoke; color: #2e7d32; margin: 0; padding: 12px 12px 24px; min-height: 100vh; }
+        h1 { margin: 18px 0 8px; font-size: 2rem; text-align: center; }
+        .controls { display: flex; gap: 15px; margin-bottom: 14px; }
         button {padding: 10px 20px; font-size: 1rem; background-color: #2e7d32; color: white; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s;}
         button:hover { background-color: #1b5e20; }
-        #game-board { display: grid; grid-template-rows: repeat(5, 1fr); gap: 5px; margin-top: 20px; }
-        .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
-        .tile { width: 50px; height: 50px; border: 2px solid #3a3a3c; display: flex; justify-content: center; align-items: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; }
+        .game-card { background: #fff; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 26px 28px; display: flex; flex-direction: column; align-items: center; max-width: 100%; }
+        #game-board { display: grid; gap: var(--gap); }
+        .row { display: grid; grid-template-columns: repeat(5, var(--tile)); gap: var(--gap); }
+        .tile { width: var(--tile); height: var(--tile); border: 2px solid #3a3a3c; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: calc(var(--tile) * 0.5); font-weight: bold; text-transform: uppercase; }
         /* letra sempre branca; só o fundo muda de cor */
         .correct, .present, .absent { color: #fff; }
         .correct { background-color: #538d4e; border-color: #538d4e; }
         .present { background-color: #b59f3b; border-color: #b59f3b; }
         .absent { background-color: #3a3a3c; border-color: #3a3a3c; }
-        #input-area { margin-top: 20px; }
-        input { padding: 10px; font-size: 1rem; text-transform: uppercase; }
-        #msg { color: #d32f2f; font-weight: 600; min-height: 1.4em; margin-top: 10px; text-align: center; }
+        #input-area { display: flex; gap: 8px; margin-top: 18px; width: calc(var(--tile) * 5 + var(--gap) * 4); }
+        input { flex: 1; min-width: 0; padding: 12px; font-size: 1.1rem; border: 2px solid #a5d6a7; border-radius: 8px; outline: none; text-transform: uppercase; letter-spacing: 2px; }
+        input:focus { border-color: #2e7d32; }
+        #msg { color: #d32f2f; font-weight: 600; font-size: 0.9rem; min-height: 1.4em; margin-top: 8px; text-align: center; }
+        @media (max-width: 600px) {
+            :root { --gap: 5px; --sobra: 290px; }
+            h1 { font-size: 1.4rem; margin: 10px 0 6px; }
+            .controls { margin-bottom: 8px; }
+            button { padding: 8px 14px; font-size: 0.95rem; }
+            .game-card { padding: 16px 14px; }
+            #input-area { margin-top: 14px; }
+        }
     </style>
 </head>
 <body>
@@ -29,12 +49,14 @@
     <div class="controls">
         <button onclick="window.location.href='menu.html'" style="background-color: #666;">Voltar ao Menu</button>
     </div>
-    <div id="game-board"></div>
-    <div id="input-area">
-        <input type="text" id="guess-input" maxlength="5" autocomplete="off" autocapitalize="characters" autofocus>
-        <button onclick="makeGuess()">Enviar</button>
-    </div>
-    <div id="msg"></div>
+    <main class="game-card">
+        <div id="game-board"></div>
+        <div id="input-area">
+            <input type="text" id="guess-input" maxlength="5" placeholder="5 letras" autocomplete="off" autocapitalize="characters" enterkeyhint="send" aria-label="Digite uma palavra de 5 letras">
+            <button onclick="makeGuess()">Enviar</button>
+        </div>
+        <div id="msg"></div>
+    </main>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="protegerPagina.js"></script>
@@ -49,6 +71,7 @@
         let msgTimer = null;
         const maxAttempts = 5;
         const board = document.getElementById("game-board");
+        const campo = document.getElementById("guess-input");
         for (let i = 0; i < maxAttempts; i++) {
             let row = document.createElement("div");
             row.className = "row";
@@ -60,8 +83,13 @@
             board.appendChild(row);
         }
 
+        // Foca o campo ao abrir (só em computador: no celular isso abriria o teclado e cobriria o tabuleiro)
+        window.paginaLiberada.then(ok => {
+            if (ok && window.matchMedia('(pointer: fine)').matches) campo.focus();
+        });
+
         // Enter envia a tentativa
-        document.getElementById("guess-input").addEventListener("keydown", e => {
+        campo.addEventListener("keydown", e => {
             if (e.key === "Enter") {
                 e.preventDefault();
                 makeGuess();
@@ -77,11 +105,10 @@
 
         function makeGuess() {
             if (acabou) return;
-            const input = document.getElementById("guess-input");
-            const guess = semAcento(input.value.trim().toUpperCase());
+            const guess = semAcento(campo.value.trim().toUpperCase());
             if (!/^[A-Z]{5}$/.test(guess)) {
                 mostrarMsg("Digite uma palavra com 5 letras.");
-                input.focus();
+                campo.focus();
                 return;
             }
             const row = document.getElementsByClassName("row")[attempts];
@@ -111,8 +138,8 @@
                 boxTile.classList.add(results[i]);
             }
             attempts++;
-            input.value = "";
-            input.focus();
+            campo.value = "";
+            campo.focus();
 
             if (guess === word) {
                 acabou = true;
