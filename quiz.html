@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eco Quiz Educativo</title>
     <style>
+        body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
         body { font-family: 'Segoe UI', sans-serif; background: #e8f5e9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         #quiz-container { background: white; width: 95%; max-width: 600px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         .screen { display: none; text-align: center; }
@@ -53,8 +54,8 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
+    <script src="protegerPagina.js"></script>
     <script>
-        exigirLogin(); // volta ao menu se não houver sessão
         const bancoDeQuestoes = {
             reciclagem: [
                 { q: "Qual a cor da lixeira para plásticos?", options: ["Verde", "Azul", "Vermelho", "Amarelo"], answer: 2, explicacao: "O vermelho é para plásticos. Reciclar plástico evita que ele polua oceanos por centenas de anos." },

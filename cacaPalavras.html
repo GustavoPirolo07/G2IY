@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Eco Caça-Palavras</title>
     <style>
+        body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
         body {font-family: 'Segoe UI', sans-serif; background: whitesmoke; color: #2e7d32; display: flex; flex-direction: column; align-items: center; padding: 20px;}
         .controls {display: flex; gap: 20px; align-items: center; margin-bottom: 20px;}
         button {padding: 10px 20px; font-size: 1rem; background-color: #2e7d32; color: white; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s;}
@@ -32,8 +33,8 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
+    <script src="protegerPagina.js"></script>
     <script>
-        exigirLogin(); // volta ao menu se não houver sessão
         const bancoDePalavras = ["RECICLAR", "REUTILIZAR", "REDUZIR", "CLIMA", "VERDE", "POLUICAO", "ENERGIA", "AMBIENTE", "FLORA", "FAUNA", "OZONIO", "LIXO", "EOLICA", "MUNDO", "HORTA", "PLANO", "FOLHA"];
         const size = 10;
         let wordsCurrentSession = [];
