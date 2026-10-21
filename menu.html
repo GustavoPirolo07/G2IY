@@ -26,6 +26,11 @@
         .btn-submit:disabled {opacity: 0.6; cursor: wait;}
         .toggle-link {margin-top: 20px; font-size: 0.9rem; color: #558b2f;}
         .toggle-link span { color: var(--primary-color); text-decoration: underline; cursor: pointer; font-weight: 600;}
+        /* Validação visual dos campos */
+        .input-group input.invalid {border-color: var(--error-color); background: #fff5f5;}
+        .input-group input.valid {border-color: #4caf50;}
+        .field-hint {font-size: 0.8rem; margin-top: 5px; color: #558b2f; line-height: 1.3; min-height: 1em;}
+        .field-hint.error {color: var(--error-color); font-weight: 600;}
         /* Mensagens de Feedback */
         .message {font-size: 0.9rem; margin-top: 12px; display: none; font-weight: 600; padding: 8px; border-radius: 6px;}
         .error { color: var(--error-color); background: #ffebee; }
@@ -47,14 +52,16 @@
         <div id="login-screen" class="screen active">
             <h1>EcoAventuras</h1>
             <p>Faça login para entrar no mundo da sustentabilidade</p>
-            <form onsubmit="handleLogin(event)">
+            <form onsubmit="handleLogin(event)" novalidate>
                 <div class="input-group">
                     <label for="login-username">E-mail</label>
                     <input type="email" id="login-username" placeholder="seu@email.com" required autocomplete="email">
+                    <div class="field-hint" id="login-username-hint"></div>
                 </div>
                 <div class="input-group">
                     <label for="login-password">Senha</label>
                     <input type="password" id="login-password" placeholder="Sua senha" required autocomplete="current-password">
+                    <div class="field-hint" id="login-password-hint"></div>
                 </div>
                 <button type="submit" id="login-btn" class="btn-submit">Entrar</button>
                 <div id="login-error" class="message error">E-mail ou senha incorretos!</div>
@@ -66,18 +73,21 @@
         <div id="register-screen" class="screen">
             <h1>Criar Conta</h1>
             <p>Cadastre-se para acompanhar sua jornada ecológica</p>
-            <form onsubmit="handleRegister(event)">
+            <form onsubmit="handleRegister(event)" novalidate>
                 <div class="input-group">
                     <label for="reg-email">E-mail</label>
                     <input type="email" id="reg-email" placeholder="seu@email.com" required autocomplete="email">
+                    <div class="field-hint" id="reg-email-hint"></div>
                 </div>
                 <div class="input-group">
                     <label for="reg-username">Escolha um Usuário</label>
-                    <input type="text" id="reg-username" placeholder="3 a 20 caracteres (letras, números, . _ -)" required autocomplete="nickname">
+                    <input type="text" id="reg-username" placeholder="Como você quer ser chamado" required maxlength="30" autocomplete="nickname">
+                    <div class="field-hint" id="reg-username-hint"></div>
                 </div>
                 <div class="input-group">
                     <label for="reg-password">Escolha uma Senha</label>
-                    <input type="password" id="reg-password" placeholder="Mínimo 8 caracteres, com letras e números" required autocomplete="new-password">
+                    <input type="password" id="reg-password" placeholder="Crie uma senha" required autocomplete="new-password">
+                    <div class="field-hint" id="reg-password-hint" data-padrao="Mínimo de 8 caracteres, com letras e números.">Mínimo de 8 caracteres, com letras e números.</div>
                 </div>
                 <button type="submit" id="reg-btn" class="btn-submit">Criar Conta</button>
                 <div id="reg-error" class="message error">Este usuário já existe!</div>
@@ -150,12 +160,71 @@
         function switchScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.message').forEach(m => m.style.display = 'none');
+            limparValidacao();
             document.getElementById(screenId).classList.add('active');
         }
+
+        // ---------- Validação visual dos campos ----------
+        const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+        const SENHA_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+
+        const regras = {
+            'login-username': v => EMAIL_RE.test(v.trim()) ? '' : 'Digite um e-mail válido, como nome@email.com.',
+            'login-password': v => v ? '' : 'Digite sua senha.',
+            'reg-email':      v => EMAIL_RE.test(v.trim()) ? '' : 'Digite um e-mail válido, como nome@email.com.',
+            'reg-username':   v => v.trim() ? '' : 'Escolha um nome de usuário.',
+            'reg-password':   v => SENHA_RE.test(v) ? '' : 'A senha precisa ter pelo menos 8 caracteres, com letras e números.'
+        };
+
+        function marcarCampo(id, msg) {
+            const input = document.getElementById(id);
+            const hint = document.getElementById(id + '-hint');
+            input.classList.toggle('invalid', !!msg);
+            input.classList.toggle('valid', !msg && input.value !== '');
+            hint.textContent = msg || hint.dataset.padrao || '';
+            hint.classList.toggle('error', !!msg);
+        }
+
+        function validarCampo(id) {
+            const msg = regras[id](document.getElementById(id).value);
+            marcarCampo(id, msg);
+            return !msg;
+        }
+
+        function limparValidacao() {
+            Object.keys(regras).forEach(id => {
+                const el = document.getElementById(id);
+                const hint = document.getElementById(id + '-hint');
+                if (!el || !hint) return;
+                el.classList.remove('invalid', 'valid');
+                delete el.dataset.tocado;
+                hint.textContent = hint.dataset.padrao || '';
+                hint.classList.remove('error');
+            });
+        }
+
+        // Valida ao sair do campo e, depois disso, a cada digitação
+        Object.keys(regras).forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('blur', () => { el.dataset.tocado = '1'; validarCampo(id); });
+            el.addEventListener('input', () => {
+                const aviso = document.getElementById(id.startsWith('login') ? 'login-error' : 'reg-error');
+                aviso.style.display = 'none';
+                if (el.dataset.tocado) validarCampo(id);
+                else el.classList.remove('invalid');
+            });
+        });
 
         // LOGIN: a senha vai por HTTPS; o Supabase compara com o hash (bcrypt + salt) guardado no servidor
         async function handleLogin(event) {
             event.preventDefault();
+            const ids = ['login-username', 'login-password'];
+            const resultados = ids.map(id => { document.getElementById(id).dataset.tocado = '1'; return validarCampo(id); });
+            if (resultados.includes(false)) {
+                document.querySelector('#login-screen input.invalid').focus();
+                return;
+            }
+
             const emailIn = document.getElementById('login-username').value.trim().toLowerCase();
             const passIn = document.getElementById('login-password').value;
             const errorMsg = document.getElementById('login-error');
@@ -170,6 +239,7 @@
 
             if (error) {
                 errorMsg.style.display = 'block'; // acesso negado
+                ids.forEach(id => document.getElementById(id).classList.add('invalid'));
                 return;
             }
             errorMsg.style.display = 'none';
@@ -181,21 +251,19 @@
         // CADASTRO: o Supabase gera o salt, aplica bcrypt e salva só o hash
         async function handleRegister(event) {
             event.preventDefault();
+            const ids = ['reg-email', 'reg-username', 'reg-password'];
+            const resultados = ids.map(id => { document.getElementById(id).dataset.tocado = '1'; return validarCampo(id); });
+            if (resultados.includes(false)) {
+                document.querySelector('#register-screen input.invalid').focus();
+                return;
+            }
+
             const emailReg = document.getElementById('reg-email').value.trim().toLowerCase();
             const userReg = document.getElementById('reg-username').value.trim();
             const passReg = document.getElementById('reg-password').value;
             const errorMsg = document.getElementById('reg-error');
             const successMsg = document.getElementById('reg-success');
             const btn = document.getElementById('reg-btn');
-
-            if (!/^[a-zA-Z0-9._-]{3,20}$/.test(userReg)) {
-                alert("O usuário deve ter de 3 a 20 caracteres (letras, números, ponto, hífen ou underline).");
-                return;
-            }
-            if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(passReg)) {
-                alert("A senha deve ter pelo menos 8 caracteres, com letras e números.");
-                return;
-            }
 
             btn.disabled = true;
             const { error } = await supabaseClient.auth.signUp({
@@ -206,13 +274,20 @@
             btn.disabled = false;
 
             if (error) {
-                errorMsg.textContent = (error.code === 'weak_password' || /password/i.test(error.message))
-                    ? 'Senha fraca: use pelo menos 8 caracteres, com letras e números.'
-                    : /already|registered|duplicate|database error/i.test(error.message)
-                    ? 'Este e-mail ou usuário já está em uso!'
-                    : 'Não foi possível criar a conta: ' + error.message;
-                errorMsg.style.display = 'block';
                 successMsg.style.display = 'none';
+                const msg = error.message || '';
+                if (error.code === 'weak_password' || /password/i.test(msg)) {
+                    marcarCampo('reg-password', 'Senha fraca: use pelo menos 8 caracteres, com letras e números.');
+                } else if (/email/i.test(msg) && /invalid|validate/i.test(msg)) {
+                    marcarCampo('reg-email', 'Este e-mail não foi aceito. Verifique o endereço.');
+                } else if (/already|registered/i.test(msg)) {
+                    marcarCampo('reg-email', 'Este e-mail já está cadastrado.');
+                } else if (/database error|duplicate|unique/i.test(msg)) {
+                    marcarCampo('reg-username', 'Este nome de usuário já está em uso.');
+                } else {
+                    errorMsg.textContent = 'Não foi possível criar a conta: ' + msg;
+                    errorMsg.style.display = 'block';
+                }
                 return;
             }
 
@@ -222,6 +297,7 @@
             document.getElementById('reg-email').value = '';
             document.getElementById('reg-username').value = '';
             document.getElementById('reg-password').value = '';
+            limparValidacao();
             setTimeout(() => switchScreen('login-screen'), 1500);
         }
 
