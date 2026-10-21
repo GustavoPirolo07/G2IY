@@ -22,6 +22,9 @@
         #explanation-box { margin-top: 15px; padding: 15px; background: #e3f2fd; border-left: 5px solid #2196f3; border-radius: 5px; display: none; text-align: left; color: #0d47a1; font-size: 0.95rem; line-height: 1.4; }
         .progress-bar { background: #eee; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 20px; }
         #progress { background: #4caf50; height: 100%; width: 0%; transition: 0.3s; }
+        .next-label { margin-top: 12px; font-size: 0.8rem; color: #1565c0; }
+        .next-bar { background: #bbdefb; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+        .next-fill { background: #2196f3; height: 100%; width: 0%; }
         #restart-btn { margin-top: 20px; padding: 12px 25px; background: #2e7d32; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .btn-leave { padding: 8px 15px; font-size: 0.9rem; background-color: #666; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px;}
     </style>
@@ -44,18 +47,18 @@
             <div class="progress-bar"><div id="progress"></div></div>
             <h2 id="question-text"></h2>
             <div id="options-container" class="options"></div>
-            <div id="explanation-box"></div>
-        </div>
-        <div id="result-screen" class="screen">
-            <h2>Resultado Final</h2>
-            <p id="score-text" style="font-size: 1.3rem; font-weight: bold;"></p>
-            <button id="restart-btn" onclick="window.location.href='menu.html'">Sair para o Menu Principal</button>
+            <div id="explanation-box">
+                <div id="explanation-text"></div>
+                <div class="next-label" id="next-label"></div>
+                <div class="next-bar"><div class="next-fill" id="next-fill"></div></div>
+            </div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="protegerPagina.js"></script>
     <script src="resultados.js"></script>
+    <script src="popupFim.js"></script>
     <script>
         const bancoDeQuestoes = {
             reciclagem: [
@@ -107,6 +110,7 @@
                 { q: "Qual atitude ajuda a proteger as florestas?", options: ["Queimar áreas de mata", "Comprar madeira de origem legal", "Caçar animais silvestres", "Jogar lixo na mata"], answer: 1, explicacao: "Preferir madeira de origem legal reduz a demanda por desmatamento ilegal." }
             ]
         };
+        const TEMPO_EXPLICACAO = 4000; // tempo da explicação (e da barrinha) em ms
         let perguntasRodada = [];
         let indexAtual = 0;
         let pontos = 0;
@@ -145,8 +149,17 @@
             const btns = document.querySelectorAll('.btn-option');
             const box = document.getElementById('explanation-box');
             btns.forEach(btn => btn.style.pointerEvents = 'none');
-            box.textContent = q.explicacao;
+            document.getElementById('explanation-text').textContent = q.explicacao;
             box.style.display = 'block';
+            // barrinha que enche durante a explicação
+            const ultima = indexAtual === perguntasRodada.length - 1;
+            document.getElementById('next-label').textContent = ultima ? 'Calculando seu resultado…' : 'Indo para a próxima pergunta…';
+            const fill = document.getElementById('next-fill');
+            fill.style.transition = 'none';
+            fill.style.width = '0%';
+            void fill.offsetWidth; // reinicia a animação
+            fill.style.transition = `width ${TEMPO_EXPLICACAO}ms linear`;
+            fill.style.width = '100%';
             if (escolha === q.answer) {
                 b.classList.add('correct');
                 pontos++;
@@ -158,13 +171,26 @@
                 indexAtual++;
                 if (indexAtual < perguntasRodada.length) proximaQuestao();
                 else mostrarResultado();
-            }, 4000);
+            }, TEMPO_EXPLICACAO);
         }
         function mostrarResultado() {
-            document.getElementById('question-screen').classList.remove('active');
-            document.getElementById('result-screen').classList.add('active');
-            document.getElementById('score-text').textContent = `Você acertou ${pontos} de ${perguntasRodada.length} questões! (+${pontos * 10} pontos ecológicos)`;
-            registrarResultado('quiz', pontos * 10);
+            document.getElementById('progress').style.width = '100%';
+            const total = perguntasRodada.length;
+            const pts = pontos * 10;
+            let emoji = '🌍', titulo = 'Continue tentando!';
+            if (pontos === total) { emoji = '🏆'; titulo = 'Perfeito!'; }
+            else if (pontos >= total * 0.7) { emoji = '🌟'; titulo = 'Muito bem!'; }
+            else if (pontos >= total * 0.4) { emoji = '🌱'; titulo = 'Bom trabalho!'; }
+            Promise.allSettled([registrarResultado('quiz', pts), esperar(500)]).then(() =>
+                mostrarPopupFim({
+                    emoji,
+                    titulo,
+                    mensagem: `Você acertou ${pontos} de ${total} perguntas.`,
+                    pontos: pts,
+                    detalhes: ['Cada resposta correta vale 10 pontos'],
+                    textoJogarNovamente: 'Escolher outro tema',
+                    onJogarNovamente: showMenu
+                }));
         }
     </script>
 </body>

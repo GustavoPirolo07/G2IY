@@ -14,11 +14,14 @@
         #game-board { display: grid; grid-template-rows: repeat(5, 1fr); gap: 5px; margin-top: 20px; }
         .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
         .tile { width: 50px; height: 50px; border: 2px solid #3a3a3c; display: flex; justify-content: center; align-items: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; }
+        /* letra sempre branca; só o fundo muda de cor */
+        .correct, .present, .absent { color: #fff; }
         .correct { background-color: #538d4e; border-color: #538d4e; }
         .present { background-color: #b59f3b; border-color: #b59f3b; }
         .absent { background-color: #3a3a3c; border-color: #3a3a3c; }
         #input-area { margin-top: 20px; }
-        input { padding: 10px; font-size: 1rem; }
+        input { padding: 10px; font-size: 1rem; text-transform: uppercase; }
+        #msg { color: #d32f2f; font-weight: 600; min-height: 1.4em; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
@@ -28,18 +31,22 @@
     </div>
     <div id="game-board"></div>
     <div id="input-area">
-        <input type="text" id="guess-input" maxlength="5" autofocus>
+        <input type="text" id="guess-input" maxlength="5" autocomplete="off" autocapitalize="characters" autofocus>
         <button onclick="makeGuess()">Enviar</button>
     </div>
+    <div id="msg"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="protegerPagina.js"></script>
     <script src="resultados.js"></script>
+    <script src="popupFim.js"></script>
     <script>
         const listaDePalavras = ["VIDRO", "LATAS", "PAPEL", "MUNDO", "CLIMA", "BIOMA", "CHUVA", "MATAS", "METAL", "PAMPA", "NUVEM", "SOLAR", "VERDE", "TERRA", "LIMPO", "ÁGUAS", "VIVER", "FAUNA", "FLORA", "LIXOS"];
-        const word = listaDePalavras[Math.floor(Math.random() * listaDePalavras.length)];
+        const semAcento = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const word = semAcento(listaDePalavras[Math.floor(Math.random() * listaDePalavras.length)]);
         let attempts = 0;
         let acabou = false;
+        let msgTimer = null;
         const maxAttempts = 5;
         const board = document.getElementById("game-board");
         for (let i = 0; i < maxAttempts; i++) {
@@ -52,11 +59,31 @@
             }
             board.appendChild(row);
         }
+
+        // Enter envia a tentativa
+        document.getElementById("guess-input").addEventListener("keydown", e => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                makeGuess();
+            }
+        });
+
+        function mostrarMsg(texto) {
+            const m = document.getElementById("msg");
+            m.textContent = texto;
+            clearTimeout(msgTimer);
+            msgTimer = setTimeout(() => { m.textContent = ""; }, 2500);
+        }
+
         function makeGuess() {
             if (acabou) return;
             const input = document.getElementById("guess-input");
-            const guess = input.value.toUpperCase();
-            if (guess.length !== 5) return alert("Digite 5 letras!");
+            const guess = semAcento(input.value.trim().toUpperCase());
+            if (!/^[A-Z]{5}$/.test(guess)) {
+                mostrarMsg("Digite uma palavra com 5 letras.");
+                input.focus();
+                return;
+            }
             const row = document.getElementsByClassName("row")[attempts];
             const tiles = row.getElementsByClassName("tile");
             let letterCount = {};
@@ -79,21 +106,39 @@
                 }
             }
             for (let i = 0; i < 5; i++) {
-                boxTile = tiles[i];
+                const boxTile = tiles[i];
                 boxTile.textContent = guess[i];
                 boxTile.classList.add(results[i]);
             }
             attempts++;
             input.value = "";
+            input.focus();
+
             if (guess === word) {
                 acabou = true;
                 const pontos = 100 - attempts * 10; // 1ª tentativa = 90, perde 10 por tentativa extra
-                return registrarResultado('adivinhacao', pontos).finally(() =>
-                    alert("Você venceu! +" + pontos + " pontos ecológicos"));
+                Promise.allSettled([registrarResultado('adivinhacao', pontos), esperar(700)]).then(() =>
+                    mostrarPopupFim({
+                        emoji: '💡',
+                        titulo: 'Você acertou!',
+                        mensagem: `A palavra era ${word}.`,
+                        pontos,
+                        detalhes: [`Tentativas: ${attempts} de ${maxAttempts}`],
+                        onJogarNovamente: () => window.location.reload()
+                    }));
+                return;
             }
             if (attempts === maxAttempts) {
                 acabou = true;
-                alert("Fim de jogo! A palavra era: " + word + ". Nesta rodada você não recebeu pontos.");
+                esperar(700).then(() =>
+                    mostrarPopupFim({
+                        emoji: '🌱',
+                        titulo: 'Não foi dessa vez',
+                        mensagem: `A palavra era ${word}.`,
+                        pontos: 0,
+                        detalhes: ['Use as cores das letras como pista e tente de novo!'],
+                        onJogarNovamente: () => window.location.reload()
+                    }));
             }
         }
     </script>

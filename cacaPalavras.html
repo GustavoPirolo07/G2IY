@@ -2,22 +2,27 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eco Caça-Palavras</title>
     <style>
         body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
+        :root { --size: 12; --cell: min(40px, calc((100vw - 130px) / 12)); }
         body {font-family: 'Segoe UI', sans-serif; background: whitesmoke; color: #2e7d32; display: flex; flex-direction: column; align-items: center; padding: 20px;}
-        .controls {display: flex; gap: 20px; align-items: center; margin-bottom: 20px;}
+        .controls {display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; align-items: center; margin-bottom: 20px;}
         button {padding: 10px 20px; font-size: 1rem; background-color: #2e7d32; color: white; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s;}
         button:hover { background-color: #1b5e20; }
-        .game-container {display: flex; flex-direction: row; gap: 30px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);}
-        #grid { display: grid; grid-template-columns: repeat(10, 40px); /* Grid 10x10 */ gap: 2px; background: #a5d6a7; padding: 5px; border-radius: 8px;}
-        .cell {width: 40px; height: 40px; background: #fff; display: flex; justify-content: center; align-items: center; font-size: 1rem; font-weight: bold; cursor: pointer; user-select: none;}
-        .cell.selected { background: #fff59d; }
+        .game-container {display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 30px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);}
+        #grid { display: grid; grid-template-columns: repeat(var(--size), var(--cell)); gap: 2px; background: #a5d6a7; padding: 5px; border-radius: 8px; touch-action: none; user-select: none; -webkit-user-select: none;}
+        .cell {width: var(--cell); height: var(--cell); background: #fff; display: flex; justify-content: center; align-items: center; font-size: calc(var(--cell) * 0.45); font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none;}
+        .cell.selected, .cell.preview { background: #fff59d; }
         .cell.found { background: #4caf50 !important; color: white; }
+        .cell.errado { background: #ffcdd2 !important; animation: tremer 0.3s; }
+        @keyframes tremer { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
         #word-list { display: flex; flex-direction: column; gap: 8px; min-width: 150px; }
         .word-item { padding: 8px; border-left: 5px solid #81c784; background: #f1f8e9; border-radius: 0 5px 5px 0; font-weight: 600; text-transform: uppercase; }
         .word-found { text-decoration: line-through; background: #c8e6c9; color: #81c784; border-color: #c8e6c9; }
         #timer { font-size: 1.5rem; font-weight: bold; }
+        .dica { font-size: 0.85rem; color: #558b2f; margin: 0 0 15px; text-align: center; max-width: 560px; }
     </style>
 </head>
 <body>
@@ -27,6 +32,7 @@
         <button onclick="initGame()">Novo Jogo</button>
         <button onclick="window.location.href='menu.html'" style="background-color: #666;">Voltar ao Menu</button>
     </div>
+    <p class="dica">Toque na primeira e na última letra da palavra (ou arraste de uma ponta à outra). As palavras podem estar em qualquer direção, inclusive na diagonal e de trás para frente.</p>
     <div class="game-container">
         <div id="grid"></div>
         <div id="word-list"></div>
@@ -35,89 +41,116 @@
     <script src="supabaseClient.js"></script>
     <script src="protegerPagina.js"></script>
     <script src="resultados.js"></script>
+    <script src="popupFim.js"></script>
     <script>
-        const bancoDePalavras = ["RECICLAR", "REUTILIZAR", "REDUZIR", "CLIMA", "VERDE", "POLUICAO", "ENERGIA", "AMBIENTE", "FLORA", "FAUNA", "OZONIO", "LIXO", "EOLICA", "MUNDO", "HORTA", "PLANO", "FOLHA"];
-        const size = 10;
+        const bancoDePalavras = ["RECICLAR", "REUTILIZAR", "REDUZIR", "CLIMA", "VERDE", "POLUICAO", "ENERGIA", "AMBIENTE", "FLORA", "FAUNA", "OZONIO", "LIXO", "EOLICA", "MUNDO", "HORTA", "PLANO", "FOLHA",
+            "COMPOSTAGEM", "SUSTENTAVEL", "RENOVAVEL", "RESIDUOS", "FLORESTA", "NATUREZA", "SELETIVA", "BIOMA"];
+        const size = 12;
+        const QTD_PALAVRAS = 6;
+        // 8 direções: horizontal, vertical, diagonais e os sentidos inversos
+        const DIRECOES = [[0, 1], [1, 0], [1, 1], [1, -1], [0, -1], [-1, 0], [-1, -1], [-1, 1]];
         let wordsCurrentSession = [];
         let wordsInfo = [];
+        let celulas = [];
         let foundCount = 0;
         let seconds = 0;
         let timerIdx = null;
         let jogoFinalizado = false;
+        let inicioSelecao = null; // primeira letra escolhida por toque/clique
+        let arrastando = null;    // letra onde começou um arraste
+
+        const k = p => p.r + ',' + p.c;
+        const sortear = n => Math.floor(Math.random() * n);
+
+        function embaralhar(lista) {
+            const a = [...lista];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = sortear(i + 1);
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
         // 50 pontos de base + bônus de até 50: 100 com 40s ou menos, perde 1 ponto por segundo, 50 com 90s ou mais
         function calcularPontos(segundos) {
             return 50 + Math.min(50, Math.max(0, 90 - segundos));
         }
+
+        // Posiciona as palavras (maiores primeiro) em qualquer uma das 8 direções; refaz a grade se alguma não couber
+        function gerarGrade(palavras) {
+            for (let tentativa = 0; tentativa < 100; tentativa++) {
+                const grade = Array.from({ length: size }, () => Array(size).fill(''));
+                const infos = [];
+                let todasColocadas = true;
+                for (const word of [...palavras].sort((a, b) => b.length - a.length)) {
+                    let colocada = false;
+                    for (let t = 0; t < 300 && !colocada; t++) {
+                        const [dr, dc] = DIRECOES[sortear(DIRECOES.length)];
+                        const r = sortear(size), c = sortear(size);
+                        const fimR = r + dr * (word.length - 1), fimC = c + dc * (word.length - 1);
+                        if (fimR < 0 || fimR >= size || fimC < 0 || fimC >= size) continue;
+                        const coords = [];
+                        let cabe = true;
+                        for (let i = 0; i < word.length; i++) {
+                            const cr = r + dr * i, cc = c + dc * i;
+                            if (grade[cr][cc] !== '' && grade[cr][cc] !== word[i]) { cabe = false; break; }
+                            coords.push({ r: cr, c: cc });
+                        }
+                        if (!cabe) continue;
+                        coords.forEach((p, i) => { grade[p.r][p.c] = word[i]; });
+                        infos.push({ word, coords, found: false });
+                        colocada = true;
+                    }
+                    if (!colocada) { todasColocadas = false; break; }
+                }
+                if (todasColocadas) return { grade, infos };
+            }
+            return null;
+        }
+
         function initGame() {
             clearInterval(timerIdx);
             seconds = 0;
             foundCount = 0;
             jogoFinalizado = false;
-            wordsInfo = [];
-            wordsCurrentSession = [...bancoDePalavras]
-                .sort(() => 0.5 - Math.random())
-                .slice(0, 6);
+            inicioSelecao = null;
+            arrastando = null;
+
+            let resultado = null;
+            while (!resultado) {
+                wordsCurrentSession = embaralhar(bancoDePalavras).slice(0, QTD_PALAVRAS);
+                resultado = gerarGrade(wordsCurrentSession);
+            }
+            wordsInfo = resultado.infos;
+
             document.getElementById('timer').textContent = "Tempo: 0s";
-            document.getElementById('grid').innerHTML = "";
-            document.getElementById('word-list').innerHTML = "<h3 style='margin-top:0'>Palavras (6):</h3>";
-            let gridArray = Array(size).fill().map(() => Array(size).fill(''));
-            wordsCurrentSession.forEach(word => {
-                let placed = false;
-                let attempts = 0;
-                while (!placed && attempts < 100) {
-                    let dir = Math.random() > 0.5 ? 'H' : 'V';
-                    let r = Math.floor(Math.random() * size);
-                    let c = Math.floor(Math.random() * size);
- 
-                    if (canPlace(word, r, c, dir, gridArray)) {
-                        let coords = [];
-                        for (let i = 0; i < word.length; i++) {
-                            let currR = dir === 'V' ? r + i : r;
-                            let currC = dir === 'H' ? c + i : c;
-                            gridArray[currR][currC] = word[i];
-                            coords.push({r: currR, c: currC});
-                        }
-                        wordsInfo.push({ word, coords, found: false });
-                        placed = true;
-                    }
-                    attempts++;
-                }
-            });
-            renderGrid(gridArray);
+            document.getElementById('word-list').innerHTML = `<h3 style='margin-top:0'>Palavras (${QTD_PALAVRAS}):</h3>`;
+            renderGrid(resultado.grade);
             renderList();
             timerIdx = setInterval(() => {
                 seconds++;
                 document.getElementById('timer').textContent = `Tempo: ${seconds}s`;
             }, 1000);
         }
-        function canPlace(word, row, col, dir, grid) {
-            if (dir === 'H' && col + word.length > size) return false;
-            if (dir === 'V' && row + word.length > size) return false;
-            for (let i = 0; i < word.length; i++) {
-                let r = dir === 'V' ? row + i : row;
-                let c = dir === 'H' ? col + i : col;
-                if (grid[r][c] !== '' && grid[r][c] !== word[i]) return false;
-            }
-            return true;
-        }
+
         function renderGrid(gridArray) {
             const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = "";
+            celulas = [];
             for (let r = 0; r < size; r++) {
+                celulas[r] = [];
                 for (let c = 0; c < size; c++) {
-                    const char = gridArray[r][c] || String.fromCharCode(65 + Math.floor(Math.random() * 26));
                     const cell = document.createElement('div');
                     cell.className = 'cell';
-                    cell.textContent = char;
+                    cell.textContent = gridArray[r][c] || String.fromCharCode(65 + sortear(26));
                     cell.dataset.r = r;
                     cell.dataset.c = c;
-                    cell.onclick = () => {
-                        cell.classList.toggle('selected');
-                        checkWin();
-                    };
                     gridEl.appendChild(cell);
+                    celulas[r][c] = cell;
                 }
             }
         }
+
         function renderList() {
             const listEl = document.getElementById('word-list');
             wordsCurrentSession.forEach(w => {
@@ -128,27 +161,123 @@
                 listEl.appendChild(div);
             });
         }
-        function checkWin() {
-            wordsInfo.forEach(info => {
-                if (info.found) return;
-                let complete = info.coords.every(co =>
-                    document.querySelector(`[data-r="${co.r}"][data-c="${co.c}"]`).classList.contains('selected')
-                );
-                if (complete) {
-                    info.found = true;
-                    foundCount++;
-                    document.getElementById('list-' + info.word).classList.add('word-found');
-                    info.coords.forEach(co => document.querySelector(`[data-r="${co.r}"][data-c="${co.c}"]`).classList.add('found'));
-                }
+
+        // ---------- Seleção: só vale uma linha reta entre duas letras ----------
+        function linha(a, b) {
+            const dr = b.r - a.r, dc = b.c - a.c;
+            if (!(dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc))) return null;
+            const n = Math.max(Math.abs(dr), Math.abs(dc));
+            const sr = Math.sign(dr), sc = Math.sign(dc);
+            return Array.from({ length: n + 1 }, (_, i) => ({ r: a.r + sr * i, c: a.c + sc * i }));
+        }
+
+        function celulaEm(x, y) {
+            const el = document.elementFromPoint(x, y);
+            const cell = el && el.closest ? el.closest('.cell') : null;
+            return cell ? { r: +cell.dataset.r, c: +cell.dataset.c } : null;
+        }
+
+        function limparSelecao() {
+            document.querySelectorAll('.cell.selected').forEach(c => c.classList.remove('selected'));
+        }
+        function limparPrevia() {
+            document.querySelectorAll('.cell.preview').forEach(c => c.classList.remove('preview'));
+        }
+        function mostrarPrevia(a, b) {
+            limparPrevia();
+            const coords = b ? linha(a, b) : null;
+            if (coords) coords.forEach(p => celulas[p.r][p.c].classList.add('preview'));
+        }
+
+        function tocarCelula(p) {
+            if (!inicioSelecao) {
+                inicioSelecao = p;
+                celulas[p.r][p.c].classList.add('selected');
+                return;
+            }
+            if (k(inicioSelecao) === k(p)) { // tocou de novo na mesma letra: cancela
+                limparSelecao();
+                inicioSelecao = null;
+                return;
+            }
+            if (!linha(inicioSelecao, p)) { // fora de linha reta: a nova letra vira o início
+                limparSelecao();
+                inicioSelecao = p;
+                celulas[p.r][p.c].classList.add('selected');
+                return;
+            }
+            tentarLinha(inicioSelecao, p);
+        }
+
+        function tentarLinha(a, b) {
+            inicioSelecao = null;
+            limparSelecao();
+            const coords = linha(a, b);
+            if (!coords) return;
+            const chave = coords.map(k).join('|');
+            const inversa = [...coords].reverse().map(k).join('|');
+            const info = wordsInfo.find(i => {
+                if (i.found) return false;
+                const ch = i.coords.map(k).join('|');
+                return ch === chave || ch === inversa;
             });
-            if (wordsInfo.length > 0 && foundCount === wordsInfo.length && !jogoFinalizado) {
-                jogoFinalizado = true;
-                clearInterval(timerIdx);
-                const pontos = calcularPontos(seconds);
-                registrarResultado('caca_palavras', pontos, Math.max(1, seconds)).finally(() =>
-                    alert(`Parabéns! Você encontrou as palavras em ${seconds} segundos! +${pontos} pontos ecológicos`));
+            if (info) {
+                marcarEncontrada(info);
+            } else {
+                coords.forEach(p => celulas[p.r][p.c].classList.add('errado'));
+                setTimeout(() => coords.forEach(p => celulas[p.r][p.c].classList.remove('errado')), 350);
             }
         }
+
+        function marcarEncontrada(info) {
+            info.found = true;
+            foundCount++;
+            document.getElementById('list-' + info.word).classList.add('word-found');
+            info.coords.forEach(p => celulas[p.r][p.c].classList.add('found'));
+            verificarVitoria();
+        }
+
+        function verificarVitoria() {
+            if (wordsInfo.length === 0 || foundCount !== wordsInfo.length || jogoFinalizado) return;
+            jogoFinalizado = true;
+            clearInterval(timerIdx);
+            const pontos = calcularPontos(seconds);
+            Promise.allSettled([
+                registrarResultado('caca_palavras', pontos, Math.max(1, seconds)),
+                esperar(700)
+            ]).then(() => mostrarPopupFim({
+                emoji: '🔍',
+                titulo: 'Parabéns!',
+                mensagem: 'Você encontrou todas as palavras!',
+                pontos,
+                detalhes: [`Tempo: ${seconds}s`, `Base: 50 pontos + bônus de tempo: ${pontos - 50}`],
+                onJogarNovamente: initGame
+            }));
+        }
+
+        // ---------- Mouse e toque ----------
+        const gridEl = document.getElementById('grid');
+        gridEl.addEventListener('pointerdown', e => {
+            if (jogoFinalizado) return;
+            const p = celulaEm(e.clientX, e.clientY);
+            if (p) arrastando = p;
+        });
+        gridEl.addEventListener('pointermove', e => {
+            if (!arrastando) return;
+            mostrarPrevia(arrastando, celulaEm(e.clientX, e.clientY));
+        });
+        window.addEventListener('pointerup', e => {
+            if (!arrastando) return;
+            const ini = arrastando;
+            arrastando = null;
+            limparPrevia();
+            const fim = celulaEm(e.clientX, e.clientY);
+            if (!fim || jogoFinalizado) return;
+            if (k(ini) === k(fim)) tocarCelula(ini);
+            else tentarLinha(ini, fim);
+        });
+        window.addEventListener('pointercancel', () => { arrastando = null; limparPrevia(); });
+
         initGame();
     </script>
 </body>
