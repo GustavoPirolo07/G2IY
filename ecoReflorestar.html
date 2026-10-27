@@ -134,7 +134,10 @@
         #tela-jogo:not([hidden]) { display: flex; flex-direction: column; min-height: calc(100vh - 24px); }
         @supports (height: 100svh) { #tela-jogo:not([hidden]) { min-height: calc(100svh - 24px); } }
         /* área invisível abaixo dos botões: também aceita o deslize, para o dedo não cobrir o campo */
-        .zona-livre { flex: 1 1 auto; min-height: 110px; touch-action: none; user-select: none; -webkit-user-select: none; }
+        .zona-livre { flex: 1 1 auto; min-height: 0; touch-action: none; user-select: none; -webkit-user-select: none; }
+        /* na tela do jogo a página não rola: o gesto de deslizar é só do jogo */
+        html.sem-rolagem, html.sem-rolagem body { overflow: hidden; overscroll-behavior: none; }
+        html.sem-rolagem #tela-jogo { touch-action: none; }
         .so-toque { display: none; }
         @media (pointer: coarse) { .so-toque { display: inline; } .so-teclado { display: none; } }
 
@@ -165,6 +168,21 @@
             .painel-dados { gap: 11px; }
             .previa-caixa { width: 104px; height: 104px; }
             .previa { --p: calc(88px / max(var(--cols), var(--rows))); }
+        }
+        /* celulares com tela baixa: reduz as folgas para tudo caber sem rolar */
+        @media (max-height: 640px) {
+            body { padding: 8px; }
+            #tela-jogo:not([hidden]) { min-height: calc(100vh - 16px); }
+            @supports (height: 100svh) { #tela-jogo:not([hidden]) { min-height: calc(100svh - 16px); } }
+            .topo { margin: 0 0 6px; }
+            .jogo { padding: 8px 10px; }
+            #area { padding: 18px 4px 8px; }
+            #aviso { margin-top: 4px; min-height: 1.2em; }
+            .instrucao { margin-top: 2px; font-size: 0.78rem; }
+            .controles button { padding: 8px 6px; }
+            @supports (height: 100svh) {
+                #tabuleiro { --t: min(calc((100vw - 76px) / var(--cols)), max(30px, min(88px, calc(520px / var(--cols)), calc((100svh - 262px) / var(--rows))))); }
+            }
         }
         @media (prefers-reduced-motion: reduce) {
             .arvore, .arvore svg, .tile::after, .folhinha, .festa .arvore, .dica-seta.mostrar { animation: none !important; }
@@ -481,6 +499,7 @@ function mostrarTela(nome) {
     telaAtual = nome;
     el('tela-catalogo').hidden = nome !== 'catalogo';
     el('tela-jogo').hidden = nome !== 'jogo';
+    document.documentElement.classList.toggle('sem-rolagem', nome === 'jogo');
     window.scrollTo(0, 0);
 }
 
@@ -811,9 +830,10 @@ document.addEventListener('keydown', e => {
 });
 
 let toque = null;
-const iniciarToque = e => { toque = { x: e.clientX, y: e.clientY }; };
-el('area').addEventListener('pointerdown', iniciarToque);
-el('zona-livre').addEventListener('pointerdown', iniciarToque);
+el('tela-jogo').addEventListener('pointerdown', e => {
+    if (e.target.closest('button, a')) return;   // botões continuam sendo só toques
+    toque = { x: e.clientX, y: e.clientY };
+});
 window.addEventListener('pointerup', e => {
     if (!toque) return;
     const dx = e.clientX - toque.x, dy = e.clientY - toque.y;
