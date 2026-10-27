@@ -148,6 +148,30 @@
                     </div>
                     <span class="game-icon">➔</span>
                 </a>
+                <a href="ecoReflorestar.html" class="game-card">
+                    <div class="game-info">
+                        <span class="game-title">🌳 Eco Reflorestar</span>
+                        <span class="game-desc">Deslize a semente e replante a floresta com o mínimo de jogadas</span>
+                        <span class="game-best" id="best-reflorestar">🌳 Árvores conquistadas: — de 30</span>
+                    </div>
+                    <span class="game-icon">➔</span>
+                </a>
+                <a href="ecoColetaSeletiva.html" class="game-card">
+                    <div class="game-info">
+                        <span class="game-title">🗑️ Eco Coleta Seletiva</span>
+                        <span class="game-desc">Leve cada item até a lixeira certa antes que ele caia</span>
+                        <span class="game-best" id="best-coleta_seletiva">🏆 Melhor pontuação: —</span>
+                    </div>
+                    <span class="game-icon">➔</span>
+                </a>
+                <a href="ecoCaminhao.html" class="game-card">
+                    <div class="game-info">
+                        <span class="game-title">🚛 Eco Caminhão</span>
+                        <span class="game-desc">Recolha o lixo da cidade e aumente seu caminhão sem bater</span>
+                        <span class="game-best" id="best-caminhao">🏆 Melhor pontuação: —</span>
+                    </div>
+                    <span class="game-icon">➔</span>
+                </a>
             </div>
             <button class="btn-logout" onclick="handleLogout()">Sair da Conta</button>
         </div>
@@ -220,8 +244,12 @@
         }
 
 async function atualizarMelhores() {
-            const melhores = await carregarMelhoresResultados();
-            ['caca_palavras', 'adivinhacao', 'quiz'].forEach(jogo => {
+            const [melhores, fases] = await Promise.all([carregarMelhoresResultados(), carregarProgressoReflorestar()]);
+            // Eco Reflorestar: soma das árvores (1 a 3 por fase) conquistadas
+            let arvores = 0;
+            REFLORESTAR_OTIMOS.forEach((otimo, i) => { const f = fases[i + 1]; if (f) arvores += estrelasReflorestar(f.melhor, otimo); });
+            document.getElementById('best-reflorestar').textContent = `🌳 Árvores conquistadas: ${arvores} de ${REFLORESTAR_OTIMOS.length * 3}`;
+            ['caca_palavras', 'adivinhacao', 'quiz', 'coleta_seletiva', 'caminhao'].forEach(jogo => {
                 const el = document.getElementById('best-' + jogo);
                 const r = melhores[jogo];
                 let texto = `🏆 Melhor pontuação: ${r ? r.melhor_pontuacao + ' pts' : '—'}`;

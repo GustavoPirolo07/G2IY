@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eco Caminhão</title>
     <style>
+        body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
         :root { --verde: #2e7d32; --verde-escuro: #1b5e20; --fundo: #e8f5e9; --cartao: #f1f8e9; --borda: #81c784; --suave: #558b2f; }
         * { box-sizing: border-box; }
         [hidden] { display: none !important; }
@@ -131,11 +132,15 @@
     </section>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="supabaseClient.js"></script>
+<script src="protegerPagina.js"></script>
+<script src="resultados.js"></script>
 <script>
 /* ============================================================
    DADOS
    ============================================================ */
-const COLS = 15, ROWS = 15;
+const COLS = 13, ROWS = 13;
 const DIRS = { U: { dx: 0, dy: -1 }, D: { dx: 0, dy: 1 }, L: { dx: -1, dy: 0 }, R: { dx: 1, dy: 0 } };
 const COR_TIPO = { papel: '#1e88e5', plastico: '#e53935', vidro: '#43a047', metal: '#f9a825', organico: '#8d6e63' };
 const LIXOS = [
@@ -186,10 +191,10 @@ const intervaloDe = nivel => Math.max(70, 170 - (nivel - 1) * 10); // ms entre m
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
 const REDUZIR = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const CHAVE_MELHOR = 'ecoCaminhao.melhor';
 const S = { rodando: false, pausado: false, morrendo: 0, motivo: '', dir: DIRS.R, fila: [], corpo: [], lixo: null, pontos: 0, nivel: 1, acum: 0, ultimoT: 0, raf: 0, efeitos: [], tempo: 0, angCab: 0 };
 let cs = 30, DPR = 1, fundo = null, melhor = 0;
-try { melhor = parseInt(localStorage.getItem(CHAVE_MELHOR), 10) || 0; } catch (e) { melhor = 0; }
+// recorde do jogador: vem do banco de dados (tabela melhores_resultados)
+window.paginaLiberada.then(ok => { if (ok) carregarMelhoresResultados().then(m => { melhor = (m.caminhao && m.caminhao.melhor_pontuacao) || 0; atualizarHud(false); }); });
 
 function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
 
@@ -215,19 +220,32 @@ function construirFundo() {
     fundo.width = cv.width; fundo.height = cv.height;
     const g = fundo.getContext('2d');
     g.scale(DPR, DPR);
+    const W = cs * COLS, H = cs * ROWS;
+    // xadrez com mais contraste, para cada quadradinho ficar bem visível
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-        g.fillStyle = (r + c) % 2 ? '#d6edc0' : '#cde8b4';
+        g.fillStyle = (r + c) % 2 ? '#b8db93' : '#d4ecb9';
         g.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
     }
-    // florzinhas e tufos fixos para dar vida ao gramado
+    // linhas da grade
+    g.strokeStyle = 'rgba(38, 110, 44, 0.38)';
+    g.lineWidth = Math.max(1, cs * 0.04);
+    g.beginPath();
+    for (let c = 1; c < COLS; c++) { g.moveTo(c * cs, 0); g.lineTo(c * cs, H); }
+    for (let r = 1; r < ROWS; r++) { g.moveTo(0, r * cs); g.lineTo(W, r * cs); }
+    g.stroke();
+    // florzinhas fixas
     let seed = 7;
     const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < 12; i++) {
         const c = Math.floor(rnd() * COLS), r = Math.floor(rnd() * ROWS);
         const x = (c + 0.2 + rnd() * 0.6) * cs, y = (r + 0.2 + rnd() * 0.6) * cs;
-        g.fillStyle = i % 3 === 0 ? '#fff59d' : '#b5dc98';
-        g.beginPath(); g.arc(x, y, cs * (i % 3 === 0 ? 0.045 : 0.07), 0, Math.PI * 2); g.fill();
+        g.fillStyle = i % 3 === 0 ? '#fff59d' : '#9ccc78';
+        g.beginPath(); g.arc(x, y, cs * (i % 3 === 0 ? 0.045 : 0.06), 0, Math.PI * 2); g.fill();
     }
+    // limite do campo bem marcado
+    const e = Math.max(3, cs * 0.14);
+    g.strokeStyle = '#2e7d32'; g.lineWidth = e;
+    g.strokeRect(e / 2, e / 2, W - e, H - e);
 }
 
 /* ---------- desenho dos veículos (espaço da célula: 1 x 1, centrado) ---------- */
@@ -429,8 +447,14 @@ function iniciar() {
 }
 
 function abrirFim() {
+    // grava no banco e espera a confirmação (no máximo 2,5 s) para o menu já mostrar o recorde atualizado
+    const registrar = S.pontos > 0 ? registrarResultado('caminhao', Math.min(S.pontos, 200)) : Promise.resolve();
+    Promise.race([registrar, new Promise(r => setTimeout(r, 2500))]).then(montarPopupFim);
+}
+
+function montarPopupFim() {
     const recorde = S.pontos > melhor;
-    if (recorde) { melhor = S.pontos; try { localStorage.setItem(CHAVE_MELHOR, String(melhor)); } catch (e) { /* só nesta sessão */ } }
+    if (recorde) melhor = S.pontos;
     atualizarHud(false);
     const venceu = S.motivo === 'vitoria';
     const overlay = criar('div'); overlay.id = 'popup-jogo';

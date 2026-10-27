@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eco Coleta Seletiva</title>
     <style>
+        body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
         :root {
             --verde: #2e7d32; --verde-escuro: #1b5e20; --fundo: #e8f5e9; --cartao: #f1f8e9;
             --borda: #81c784; --suave: #558b2f;
@@ -72,7 +73,6 @@
 
         /* item que cai */
         .item { position: absolute; top: 0; left: calc(var(--lane, 2) * 20%); width: 20%; display: flex; flex-direction: column; align-items: center; transition: left 0.1s ease-out; will-change: transform; z-index: 3; }
-        .item-nome { font-size: 0.68rem; font-weight: 700; white-space: nowrap; background: rgba(255,255,255,.94); color: var(--verde-escuro); border-radius: 999px; padding: 1px 8px; margin-bottom: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
         .item-arte { width: min(78%, 64px); aspect-ratio: 1; }
         .item-arte svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 3px 2px rgba(0,0,0,.2)); animation: gira 2.2s ease-in-out infinite alternate; }
         @keyframes gira { from { rotate: -7deg; } to { rotate: 7deg; } }
@@ -80,7 +80,6 @@
         @keyframes entrar { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(34px) scale(0.3); opacity: 0; } }
         .item.errou .item-arte { animation: rebater 0.6s ease-out forwards; }
         @keyframes rebater { 0% { transform: translate(0,0) rotate(0); opacity: 1; } 100% { transform: translate(var(--fuga, 40px), -50px) rotate(160deg); opacity: 0; } }
-        .item.dentro .item-nome, .item.errou .item-nome { opacity: 0; transition: opacity 0.15s; }
 
         .mais { position: absolute; z-index: 5; font-weight: 800; font-size: 1.3rem; color: var(--verde); text-shadow: 0 1px 0 #fff, 0 0 6px #fff; pointer-events: none; animation: subir 0.8s ease-out forwards; translate: -50% 0; }
         @keyframes subir { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-46px); } }
@@ -158,7 +157,6 @@
             .lix-nome { font-size: 0.8rem; }
             .tampa { height: 15px; }
             .item-arte { width: min(78%, 84px); }
-            .item-nome { font-size: 0.75rem; }
             .instrucao { display: block; text-align: left; }
             .btn-controle { min-height: 66px; }
         }
@@ -209,6 +207,10 @@
     </section>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="supabaseClient.js"></script>
+<script src="protegerPagina.js"></script>
+<script src="resultados.js"></script>
 <script>
 /* ============================================================
    DADOS
@@ -276,12 +278,12 @@ function nivelDe(itens) { return 1 + Math.floor(itens / ITENS_POR_NIVEL); }
 const $ = id => document.getElementById(id);
 const campo = $('campo'), faixasEl = $('faixas'), lixeirasEl = $('lixeiras');
 const REDUZIR = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const CHAVE_MELHOR = 'ecoColetaSeletiva.melhor';
 
 const S = { rodando: false, pausado: false, vidas: VIDAS_INICIAIS, pontos: 0, itens: 0, nivel: 1,
             item: null, areaQueda: 0, esperaSpawn: 0, esperaFim: 0, ultimoT: 0, ultimoItem: null, raf: 0, soltando: false };
 let faixas = [], bins = [], melhor = 0, dicaTimer = null, ultimoMov = 0;
-try { melhor = parseInt(localStorage.getItem(CHAVE_MELHOR), 10) || 0; } catch (e) { melhor = 0; }
+// recorde do jogador: vem do banco de dados (tabela melhores_resultados)
+window.paginaLiberada.then(ok => { if (ok) carregarMelhoresResultados().then(m => { melhor = (m.coleta_seletiva && m.coleta_seletiva.melhor_pontuacao) || 0; }); });
 
 function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
 
@@ -353,7 +355,7 @@ function gerarItem() {
     const lane = Math.floor(Math.random() * 5);
     const el = criar('div', 'item');
     el.style.setProperty('--lane', lane);
-    el.innerHTML = `<span class="item-nome">${def.nome}</span><div class="item-arte">${ARTE[def.id]}</div>`;
+    el.innerHTML = `<div class="item-arte">${ARTE[def.id]}</div>`;
     campo.appendChild(el);
     medir();
     S.item = { def, lane, el, p: 0, T: duracaoQueda(S.itens), caindo: true, alt: el.offsetHeight };
@@ -522,8 +524,14 @@ function iniciarJogo() {
 function fimDeJogo() {
     S.rodando = false;
     cancelAnimationFrame(S.raf);
+    // grava no banco e espera a confirmação (no máximo 2,5 s) para o menu já mostrar o recorde atualizado
+    const registrar = S.pontos > 0 ? registrarResultado('coleta_seletiva', Math.min(S.pontos, 1000)) : Promise.resolve();
+    Promise.race([registrar, new Promise(r => setTimeout(r, 2500))]).then(montarPopupFim);
+}
+
+function montarPopupFim() {
     const recorde = S.pontos > melhor;
-    if (recorde) { melhor = S.pontos; try { localStorage.setItem(CHAVE_MELHOR, String(melhor)); } catch (e) { /* vale só nesta sessão */ } }
+    if (recorde) melhor = S.pontos;
 
     const overlay = criar('div'); overlay.id = 'popup-jogo';
     const card = criar('div', 'pf-card'); card.tabIndex = -1;

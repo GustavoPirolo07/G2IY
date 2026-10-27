@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eco Reflorestar</title>
     <style>
+        body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
         :root {
             --verde: #2e7d32; --verde-escuro: #1b5e20; --fundo: #e8f5e9; --cartao: #f1f8e9;
             --borda: #81c784; --suave: #558b2f;
@@ -130,6 +131,10 @@
         .controles #btn-dica:hover:not(:disabled) { background: #ffe9a0; }
         #aviso { min-height: 1.5em; margin: 10px 0 0; text-align: center; font-size: 0.9rem; font-weight: 600; color: var(--suave); }
         .instrucao { margin: 6px 0 0; text-align: center; font-size: 0.85rem; color: var(--suave); line-height: 1.4; }
+        #tela-jogo:not([hidden]) { display: flex; flex-direction: column; min-height: calc(100vh - 24px); }
+        @supports (height: 100svh) { #tela-jogo:not([hidden]) { min-height: calc(100svh - 24px); } }
+        /* área invisível abaixo dos botões: também aceita o deslize, para o dedo não cobrir o campo */
+        .zona-livre { flex: 1 1 auto; min-height: 110px; touch-action: none; user-select: none; -webkit-user-select: none; }
         .so-toque { display: none; }
         @media (pointer: coarse) { .so-toque { display: inline; } .so-teclado { display: none; } }
 
@@ -184,7 +189,6 @@
             </div>
             <p class="cat-legenda">Termine cada fase com o mínimo de jogadas para ganhar as 3 árvores. Você pode voltar a qualquer fase para bater seu recorde.</p>
             <div class="lista-fases" id="lista-fases"></div>
-            <div class="cat-rodape"><button type="button" class="link-discreto" id="btn-apagar">Apagar progresso (teste)</button></div>
         </section>
     </div>
 
@@ -218,11 +222,16 @@
             <div id="aviso" role="status" aria-live="polite"></div>
             <p class="instrucao">A semente rola até bater numa pedra ou na borda. Plante uma árvore em todos os quadrados livres.
                 <span class="so-teclado">Use as setas do teclado ou WASD.</span>
-                <span class="so-toque">Deslize o dedo sobre o campo.</span></p>
+                <span class="so-toque">Deslize o dedo no campo ou na área livre abaixo dos botões.</span></p>
         </section>
+        <div id="zona-livre" class="zona-livre" aria-hidden="true"></div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="supabaseClient.js"></script>
+<script src="protegerPagina.js"></script>
+<script src="resultados.js"></script>
 <script>
 /* ============================================================
    LÓGICA DO JOGO (sem DOM, testável)
@@ -449,11 +458,12 @@ const niveisProntos = NIVEIS.map(prepararNivel);
 let nivel = null, indiceNivel = 0, tiles = [], telaAtual = 'catalogo';
 let estado = null, timers = [], rotacao = 0, avisoTimer = null;
 
-/* ---------- progresso do jogador (neste teste, fica no navegador) ---------- */
-const CHAVE_PROGRESSO = 'ecoReflorestar.progresso.v1';
-function lerProgresso() { try { return JSON.parse(localStorage.getItem(CHAVE_PROGRESSO)) || {}; } catch (e) { return {}; } }
-function salvarProgresso() { try { localStorage.setItem(CHAVE_PROGRESSO, JSON.stringify(progresso)); } catch (e) { /* sem armazenamento: vale só nesta sessão */ } }
-let progresso = lerProgresso();
+/* ---------- progresso do jogador (vem do banco de dados) ---------- */
+let progresso = {};   // { [fase]: { melhor: jogadas } }
+function sincronizarProgresso() {
+    return carregarProgressoReflorestar().then(mapa => { progresso = mapa; if (telaAtual === 'catalogo') mostrarCatalogo(); });
+}
+window.paginaLiberada.then(ok => { if (ok) sincronizarProgresso(); });
 
 function limparTimers() { timers.forEach(clearTimeout); timers = []; }
 function agendar(fn, ms) { timers.push(setTimeout(fn, ms)); }
@@ -739,17 +749,22 @@ function vencer() {
 
     const antes = progresso[nivel.id] ? progresso[nivel.id].melhor : null;
     const recorde = antes !== null && estado.jogadas < antes;
-    if (antes === null || estado.jogadas < antes) {
-        progresso[nivel.id] = { melhor: estado.jogadas };
-        salvarProgresso();
-    }
-    agendar(() => abrirPopupVitoria(antes, recorde), REDUZIR ? 200 : 1300);
+    const jogadas = estado.jogadas, idFase = nivel.id;
+    if (antes === null || jogadas < antes) progresso[idFase] = { melhor: jogadas };
+    const registro = registrarReflorestar(idFase, jogadas);   // devolve os pontos ecológicos ganhos
+    agendar(() => {
+        // espera a confirmação do banco (no máximo 2,5 s) para o menu já mostrar o progresso atualizado
+        Promise.race([registro, new Promise(r => setTimeout(() => r(0), 2500))]).then(pontos => {
+            if (!estado || !estado.venceu || nivel.id !== idFase) return;
+            abrirPopupVitoria(antes, recorde, pontos);
+        });
+    }, REDUZIR ? 200 : 1300);
 }
 
 /* ---------- popup ---------- */
 function fecharPopup() { const p = el('popup-fase'); if (p) p.remove(); }
 
-function abrirPopupVitoria(antes, recorde) {
+function abrirPopupVitoria(antes, recorde, pontosGanhos) {
     const ultima = indiceNivel === NIVEIS.length - 1;
     const e = estrelas(estado.jogadas, nivel.otimo);
 
@@ -760,6 +775,7 @@ function abrirPopupVitoria(antes, recorde) {
     card.appendChild(criar('h2', '', e === 3 ? 'Fase perfeita!' : 'Fase concluída!'));
     card.appendChild(criar('p', 'pf-msg', `Você reflorestou: ${nivel.nome}.`));
     if (recorde) card.appendChild(criar('span', 'pf-recorde', 'Novo recorde!'));
+    if (pontosGanhos > 0) { card.appendChild(document.createElement('br')); card.appendChild(criar('span', 'pf-recorde', `+${pontosGanhos} pontos ecológicos`)); }
 
     card.appendChild(arvoresNota(e, 'pf-estrelas'));
 
@@ -795,7 +811,9 @@ document.addEventListener('keydown', e => {
 });
 
 let toque = null;
-el('area').addEventListener('pointerdown', e => { toque = { x: e.clientX, y: e.clientY }; });
+const iniciarToque = e => { toque = { x: e.clientX, y: e.clientY }; };
+el('area').addEventListener('pointerdown', iniciarToque);
+el('zona-livre').addEventListener('pointerdown', iniciarToque);
 window.addEventListener('pointerup', e => {
     if (!toque) return;
     const dx = e.clientX - toque.x, dy = e.clientY - toque.y;
@@ -809,24 +827,6 @@ el('btn-desfazer').onclick = desfazer;
 el('btn-dica').onclick = dica;
 el('btn-reiniciar').onclick = () => carregarNivel(indiceNivel);
 el('btn-fases').onclick = mostrarCatalogo;
-
-// apagar progresso (só para testes): pede um segundo clique
-let apagarTimer = null;
-el('btn-apagar').onclick = () => {
-    const b = el('btn-apagar');
-    if (b.dataset.pronto) {
-        progresso = {};
-        salvarProgresso();
-        b.textContent = 'Apagar progresso (teste)';
-        delete b.dataset.pronto;
-        clearTimeout(apagarTimer);
-        mostrarCatalogo();
-        return;
-    }
-    b.dataset.pronto = '1';
-    b.textContent = 'Clique de novo para confirmar';
-    apagarTimer = setTimeout(() => { b.textContent = 'Apagar progresso (teste)'; delete b.dataset.pronto; }, 3500);
-};
 
 mostrarCatalogo();
 </script>
