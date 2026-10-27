@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco Reflorestar</title>
+    <style>
+        :root {
+            --verde: #2e7d32; --verde-escuro: #1b5e20; --fundo: #e8f5e9; --cartao: #f1f8e9;
+            --borda: #81c784; --suave: #558b2f;
+            --terra: #dcc7a1; --terra-2: #d4bd94;
+            --mata: #9ad14f; --mata-2: #8cc745;
+        }
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+        body { margin: 0; padding: 12px; min-height: 100vh; display: flex; justify-content: center; background: var(--fundo); color: var(--verde); font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+        .app { width: 100%; max-width: 680px; }
+        button { font-family: inherit; }
+        :focus-visible { outline: 3px solid var(--verde); outline-offset: 2px; }
+
+        /* ---------- topo ---------- */
+        .topo { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin: 4px 0 12px; }
+        .voltar { justify-self: start; text-decoration: none; cursor: pointer; color: var(--verde); font-weight: 700; font-size: 0.9rem; background: var(--cartao); border: 2px solid var(--borda); border-radius: 999px; padding: 6px 14px; }
+        .voltar:hover { background: #c8e6c9; }
+        h1 { margin: 0; font-size: 1.5rem; text-align: center; }
+
+        .jogo { background: #fff; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 16px 16px 14px; }
+
+        /* ---------- catálogo de fases ---------- */
+        .cat-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .cat-cab h2 { margin: 0; font-size: 1.25rem; }
+        .cat-total { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
+        .cat-total svg { width: 22px; height: 22px; }
+        .cat-legenda { margin: 6px 0 14px; font-size: 0.88rem; color: var(--suave); line-height: 1.4; }
+        .lista-fases { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+        .card-nivel { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 12px 10px 8px; background: var(--cartao); border: 2px solid var(--borda); border-radius: 14px; cursor: pointer; color: var(--verde); transition: transform 0.15s, background-color 0.15s; }
+        .card-nivel:hover { background: #e3f2d5; transform: translateY(-2px); }
+        .card-nivel.proxima { border-color: var(--verde); box-shadow: 0 0 0 3px rgba(46,125,50,.18); }
+        .previa-caixa { width: 120px; height: 120px; flex: none; display: grid; place-items: center; background: #fff; border-radius: 10px; box-shadow: inset 0 0 0 2px #e3efd6; }
+        .previa { --p: calc(100px / max(var(--cols), var(--rows))); display: grid; grid-template-columns: repeat(var(--cols), var(--p)); grid-template-rows: repeat(var(--rows), var(--p)); gap: 1px; }
+        .p-chao { background: var(--terra); border-radius: 2px; position: relative; }
+        .previa.feita .p-chao { background: var(--mata); }
+        .p-pedra { background: #8d9288; border-radius: 3px; box-shadow: inset -1px -1px 0 rgba(0,0,0,.28), inset 1px 1px 0 rgba(255,255,255,.35); }
+        .p-inicio::after { content: ''; position: absolute; inset: 22%; border-radius: 50%; background: #e0a22a; box-shadow: 0 0 0 1px rgba(90,45,0,.35); }
+        .card-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .card-info strong { font-size: 1.1rem; }
+        .card-nome { font-size: 0.9rem; color: var(--suave); }
+        .card-linha { font-size: 0.82rem; color: var(--suave); }
+        .card-badge { align-self: flex-start; margin-bottom: 2px; font-size: 0.72rem; font-weight: 700; color: #fff; background: var(--verde); border-radius: 999px; padding: 1px 8px; }
+        .arvores-nota { display: flex; gap: 3px; margin-top: 6px; }
+        .arvores-nota svg { width: 24px; height: 24px; }
+        .arvores-nota .apagada, .pf-estrelas .apagada { opacity: .2; filter: grayscale(1); }
+        .cat-rodape { text-align: center; margin-top: 14px; }
+        .link-discreto { background: none; border: none; color: var(--suave); text-decoration: underline; font-size: 0.82rem; cursor: pointer; padding: 6px; }
+
+        /* ---------- painel do jogo ---------- */
+        .painel { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+        .painel-fase strong { display: block; font-size: 1.2rem; }
+        .painel-fase span { font-size: 0.9rem; color: var(--suave); }
+        .painel-dados { display: flex; gap: 16px; text-align: right; }
+        .painel-dados span { display: block; font-size: 0.75rem; color: var(--suave); }
+        .painel-dados b { font-size: 1.15rem; }
+        .barra { height: 10px; border-radius: 6px; background: #e3efd6; margin-top: 10px; overflow: hidden; }
+        #barra-fill { height: 100%; width: 0%; border-radius: 6px; background: linear-gradient(90deg, #7bc043, #3f9d3a); transition: width 0.4s ease; }
+
+        /* ---------- campo ---------- */
+        #area { display: flex; justify-content: center; padding: 26px 4px 16px; touch-action: none; user-select: none; -webkit-user-select: none; }
+        #tabuleiro {
+            --t: min(calc((100vw - 76px) / var(--cols)), calc(520px / var(--cols)), 88px);
+            position: relative; display: grid;
+            grid-template-columns: repeat(var(--cols), var(--t));
+            grid-template-rows: repeat(var(--rows), var(--t));
+            filter: drop-shadow(0 6px 7px rgba(60, 40, 10, 0.22));
+        }
+        @supports (height: 100svh) {
+            #tabuleiro { --t: min(calc((100vw - 76px) / var(--cols)), max(40px, min(88px, calc(520px / var(--cols)), calc((100svh - 300px) / var(--rows))))); }
+        }
+        .tile { position: relative; width: var(--t); height: var(--t); background-color: var(--terra);
+            background-image: radial-gradient(circle at 22% 30%, rgba(120,90,40,.16) 0 2px, transparent 3px), radial-gradient(circle at 72% 70%, rgba(120,90,40,.14) 0 2.5px, transparent 3px);
+            box-shadow: inset 0 0 0 1px rgba(120, 90, 40, 0.10); transition: background-color 0.45s ease; }
+        .tile.par { background-color: var(--terra-2); }
+        .tile.vazio { visibility: hidden; }
+        .tile.plantado { background-color: var(--mata);
+            background-image: radial-gradient(circle at 20% 78%, rgba(60,130,30,.22) 0 3px, transparent 4px), radial-gradient(circle at 78% 24%, rgba(255,255,255,.18) 0 2px, transparent 3px); }
+        .tile.plantado.par { background-color: var(--mata-2); }
+        .c-tl { border-top-left-radius: 16px; } .c-tr { border-top-right-radius: 16px; }
+        .c-bl { border-bottom-left-radius: 16px; } .c-br { border-bottom-right-radius: 16px; }
+        .tile::after { content: ''; position: absolute; inset: -10%; border-radius: 50%; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(200,240,120,.95) 0%, rgba(200,240,120,0) 68%); }
+        .tile.plantado::after { animation: onda 0.8s ease-out; }
+        @keyframes onda { 0% { transform: scale(0.1); opacity: 0.95; } 100% { transform: scale(1.5); opacity: 0; } }
+
+        /* pedras */
+        .rocha { position: absolute; left: 50%; bottom: 3%; width: 98%; translate: -50% 0; z-index: 1; pointer-events: none; }
+        .rocha svg { display: block; width: 100%; height: auto; }
+
+        /* árvores */
+        .arvore { position: absolute; left: 50%; bottom: 4%; width: 88%; translate: -50% 0; transform-origin: 50% 100%; z-index: 2; pointer-events: none; animation: brotar 0.7s cubic-bezier(.3,1.4,.5,1) both; }
+        .arvore svg { display: block; width: 100%; height: auto; scale: var(--esc, 1); transform-origin: 50% 100%; animation: balancar 4.6s ease-in-out var(--atraso, 0s) infinite; }
+        @keyframes brotar { 0% { scale: 0; opacity: 0; } 55% { scale: 1.18; opacity: 1; } 78% { scale: 0.94; } 100% { scale: 1; opacity: 1; } }
+        @keyframes balancar { 0%, 100% { rotate: -1.4deg; } 50% { rotate: 1.4deg; } }
+        .festa .arvore { animation: celebrar 0.75s ease-in-out calc(var(--ordem, 0) * 45ms) both; }
+        @keyframes celebrar { 0%, 100% { translate: -50% 0; scale: 1; } 40% { translate: -50% -26%; scale: 1.12; } }
+
+        .folhinha { position: absolute; left: 50%; top: 46%; width: calc(var(--t) * 0.13); height: calc(var(--t) * 0.13); background: #6cc65f; border-radius: 0 100% 0 100%; z-index: 3; pointer-events: none; animation: voar 0.75s ease-out forwards; }
+        @keyframes voar { 0% { translate: -50% -50%; scale: 0.4; opacity: 1; } 100% { translate: calc(-50% + var(--dx) * var(--t)) calc(-50% + var(--dy) * var(--t)); scale: 1; rotate: var(--rot); opacity: 0; } }
+
+        /* a semente */
+        #semente { position: absolute; left: 0; top: 0; width: var(--t); height: var(--t); z-index: 6; pointer-events: none;
+            transform: translate(calc(var(--c, 0) * var(--t)), calc(var(--r, 0) * var(--t))); transition: transform var(--dur, 0ms) linear; }
+        .sombra { position: absolute; left: 22%; right: 22%; bottom: 14%; height: 10%; background: rgba(0,0,0,.24); border-radius: 50%; filter: blur(2px); }
+        .salto { position: absolute; inset: 0; transform-origin: 50% 72%; }
+        .corpo { position: absolute; inset: 19%; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #f9d56e, #e0a22a 55%, #a9680f); box-shadow: inset -3px -4px 6px rgba(90,45,0,.35), 0 3px 5px rgba(0,0,0,.3); }
+        .corpo::before { content: ''; position: absolute; left: 46%; top: 10%; width: 9%; height: 80%; border-radius: 50%; background: rgba(110,60,10,.5); rotate: 16deg; }
+        .brilho { position: absolute; left: 33%; top: 27%; width: 16%; height: 11%; border-radius: 50%; background: rgba(255,255,255,.7); rotate: -30deg; }
+        .brotinho { position: absolute; left: 50%; top: 8%; width: 26%; height: 18%; translate: -50% 0; }
+        .brotinho::before, .brotinho::after { content: ''; position: absolute; bottom: 0; width: 55%; height: 100%; background: #4aae43; }
+        .brotinho::before { left: 0; border-radius: 100% 0 100% 0; }
+        .brotinho::after { right: 0; border-radius: 0 100% 0 100%; background: #6cc65f; }
+        .dica-seta { position: absolute; left: 50%; top: 50%; width: calc(var(--t) * 0.3); height: calc(var(--t) * 0.3); background: var(--verde); clip-path: polygon(50% 0, 100% 100%, 0 100%); display: none;
+            transform: translate(-50%, -50%) rotate(var(--ang, 0deg)) translateY(calc(var(--t) * -0.66)); }
+        .dica-seta.mostrar { display: block; animation: piscar 0.8s ease-in-out infinite; }
+        @keyframes piscar { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+        /* ---------- controles ---------- */
+        .controles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .controles button { padding: 11px 6px; font-size: 1rem; font-weight: 700; border-radius: 10px; border: 2px solid var(--borda); background: #fff; color: var(--verde); cursor: pointer; transition: 0.2s; }
+        .controles button:hover:not(:disabled) { background: var(--cartao); }
+        .controles button:disabled { opacity: 0.45; cursor: default; }
+        .controles #btn-dica { background: #fff3c4; border-color: #f2c230; color: #7a5a00; }
+        .controles #btn-dica:hover:not(:disabled) { background: #ffe9a0; }
+        #aviso { min-height: 1.5em; margin: 10px 0 0; text-align: center; font-size: 0.9rem; font-weight: 600; color: var(--suave); }
+        .instrucao { margin: 6px 0 0; text-align: center; font-size: 0.85rem; color: var(--suave); line-height: 1.4; }
+        .so-toque { display: none; }
+        @media (pointer: coarse) { .so-toque { display: inline; } .so-teclado { display: none; } }
+
+        /* ---------- popup de fim de fase ---------- */
+        #popup-fase { position: fixed; inset: 0; background: rgba(27,94,32,.45); display: flex; align-items: center; justify-content: center; padding: 15px; z-index: 9999; animation: pfFade .25s ease; overflow-y: auto; }
+        #popup-fase .pf-card { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: 400px; width: 100%; padding: 26px 22px; text-align: center; animation: pfSobe .3s ease; outline: none; }
+        #popup-fase .pf-emoji { font-size: 3rem; line-height: 1; }
+        #popup-fase h2 { font-size: 1.6rem; margin: 10px 0 4px; color: var(--verde); }
+        #popup-fase .pf-msg { color: var(--suave); font-size: .95rem; line-height: 1.4; margin: 0 0 4px; }
+        #popup-fase .pf-recorde { display: inline-block; margin: 6px 0 0; padding: 3px 12px; border-radius: 999px; background: #fff3c4; border: 2px solid #f2c230; color: #7a5a00; font-weight: 700; font-size: .85rem; }
+        #popup-fase .pf-estrelas { display: flex; justify-content: center; gap: 6px; margin: 12px 0 2px; }
+        #popup-fase .pf-estrelas svg { width: 40px; height: 40px; }
+        #popup-fase .pf-caixa { background: var(--cartao); border: 2px solid var(--borda); border-radius: 12px; padding: 12px; margin: 12px 0 4px; }
+        #popup-fase .pf-caixa strong { display: block; font-size: 2rem; color: var(--verde-escuro); }
+        #popup-fase .pf-caixa span { font-size: .85rem; color: var(--suave); }
+        #popup-fase .pf-botoes { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+        #popup-fase .pf-btn { padding: 13px; font-size: 1.05rem; font-weight: bold; border-radius: 10px; cursor: pointer; transition: .2s; }
+        #popup-fase .pf-btn.principal { background: var(--verde); color: #fff; border: 2px solid var(--verde); }
+        #popup-fase .pf-btn.principal:hover { background: var(--verde-escuro); border-color: var(--verde-escuro); }
+        #popup-fase .pf-btn.secundario { background: #fff; color: var(--verde); border: 2px solid var(--borda); }
+        #popup-fase .pf-btn.secundario:hover { background: var(--cartao); }
+        @keyframes pfFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pfSobe { from { opacity: 0; transform: translateY(15px) scale(.97); } to { opacity: 1; transform: none; } }
+
+        @media (max-width: 420px) {
+            h1 { font-size: 1.25rem; }
+            .jogo { padding: 12px 10px 12px; }
+            .painel-dados { gap: 11px; }
+            .previa-caixa { width: 104px; height: 104px; }
+            .previa { --p: calc(88px / max(var(--cols), var(--rows))); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .arvore, .arvore svg, .tile::after, .folhinha, .festa .arvore, .dica-seta.mostrar { animation: none !important; }
+            #semente { transition-duration: 0.01ms !important; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <!-- ===================== CATÁLOGO DE FASES ===================== -->
+    <div id="tela-catalogo">
+        <header class="topo">
+            <a class="voltar" href="menu.html">‹ Menu</a>
+            <h1>Eco Reflorestar</h1>
+            <span></span>
+        </header>
+        <section class="jogo">
+            <div class="cat-cab">
+                <h2>Escolha uma fase</h2>
+                <div class="cat-total" aria-label="Árvores conquistadas"><span id="cat-icone"></span><span id="total-arvores">0 de 30</span></div>
+            </div>
+            <p class="cat-legenda">Termine cada fase com o mínimo de jogadas para ganhar as 3 árvores. Você pode voltar a qualquer fase para bater seu recorde.</p>
+            <div class="lista-fases" id="lista-fases"></div>
+            <div class="cat-rodape"><button type="button" class="link-discreto" id="btn-apagar">Apagar progresso (teste)</button></div>
+        </section>
+    </div>
+
+    <!-- ===================== JOGO ===================== -->
+    <div id="tela-jogo" hidden>
+        <header class="topo">
+            <button type="button" class="voltar" id="btn-fases">‹ Fases</button>
+            <h1>Eco Reflorestar</h1>
+            <span></span>
+        </header>
+        <section class="jogo">
+            <div class="painel">
+                <div class="painel-fase"><strong id="fase-titulo">Fase 1</strong><span id="fase-nome"></span></div>
+                <div class="painel-dados">
+                    <div><span>Jogadas</span><b id="jogadas">0</b></div>
+                    <div><span>Mínimo</span><b id="minimo">0</b></div>
+                    <div><span>Árvores</span><b id="arvores">0/0</b></div>
+                </div>
+            </div>
+            <div class="barra" role="progressbar" aria-label="Área reflorestada" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="barra"><div id="barra-fill"></div></div>
+
+            <div id="area">
+                <div id="tabuleiro" style="--cols: 5; --rows: 4;"></div>
+            </div>
+
+            <div class="controles">
+                <button type="button" id="btn-desfazer">Desfazer</button>
+                <button type="button" id="btn-dica">Dica</button>
+                <button type="button" id="btn-reiniciar">Reiniciar</button>
+            </div>
+            <div id="aviso" role="status" aria-live="polite"></div>
+            <p class="instrucao">A semente rola até bater numa pedra ou na borda. Plante uma árvore em todos os quadrados livres.
+                <span class="so-teclado">Use as setas do teclado ou WASD.</span>
+                <span class="so-toque">Deslize o dedo sobre o campo.</span></p>
+        </section>
+    </div>
+</div>
+
+<script>
+/* ============================================================
+   LÓGICA DO JOGO (sem DOM, testável)
+   ============================================================ */
+const DIRS = { U: [-1, 0], D: [1, 0], L: [0, -1], R: [0, 1] };
+const NOME_DIR = { U: 'para cima', D: 'para baixo', L: 'para a esquerda', R: 'para a direita' };
+const ANGULO_DIR = { U: 0, R: 90, D: 180, L: 270 };
+
+// Legenda: "." chão livre, "S" ponto de partida, "#" pedra, "_" fora do campo.
+// Todas as fases foram verificadas por computador: de QUALQUER posição alcançável ainda dá para completar
+// (não existe beco sem saída) e "otimo" é o menor número possível de jogadas.
+const NIVEIS = [
+    { id: 1, nome: 'Clareira', otimo: 5, arvores: ['copa', 'copa', 'arbusto', 'ipeAmarelo'],
+      grade: ['.....',
+              'S....',
+              '....#'] },
+    { id: 2, nome: 'Trilha', otimo: 7, arvores: ['copa', 'arbusto', 'arbusto', 'ipeAmarelo'],
+      grade: ['#...',
+              'S...',
+              '..#.',
+              '....'] },
+    { id: 3, nome: 'Nascente', otimo: 9, arvores: ['copa', 'arbusto', 'ipeAmarelo'],
+      grade: ['.....',
+              '##...',
+              '....#',
+              '..S..'] },
+    { id: 4, nome: 'Encosta da serra', otimo: 11, arvores: ['pinheiro', 'pinheiro', 'copa', 'arbusto'],
+      grade: ['..#..',
+              '.....',
+              '....#',
+              '.S...',
+              '...#.'] },
+    { id: 5, nome: 'Beira do rio', otimo: 13, arvores: ['copa', 'ipeRosa', 'arbusto'],
+      grade: ['....#.',
+              '......',
+              '#.S...',
+              '.....#',
+              '......'] },
+    { id: 6, nome: 'Campo aberto', otimo: 15, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['.....#',
+              '...#.#',
+              '#.....',
+              '......',
+              'S.....',
+              '.#....'] },
+    { id: 7, nome: 'Mata ciliar', otimo: 17, arvores: ['copa', 'copa', 'ipeRosa', 'pinheiro'],
+      grade: ['#..#...',
+              '.......',
+              '...S..#',
+              '......#',
+              '.#.....',
+              '..#....'] },
+    { id: 8, nome: 'Vale do rio', otimo: 19, arvores: ['copa', 'ipeRosa', 'ipeAmarelo', 'pinheiro', 'arbusto'],
+      grade: ['_##..._',
+              '...#..S',
+              '.......',
+              '##.....',
+              '#......',
+              '....##.',
+              '..#....'] },
+    { id: 9, nome: 'Cerrado', otimo: 21, arvores: ['ipeAmarelo', 'ipeAmarelo', 'arbusto', 'copa'],
+      grade: ['..#....',
+              '.......',
+              '....##.',
+              '.#...##',
+              '.#.....',
+              '...S.._',
+              '.#.#.._'] },
+    { id: 10, nome: 'Mata Atlântica', otimo: 23, arvores: ['copa', 'ipeRosa', 'pinheiro', 'ipeAmarelo', 'arbusto'],
+      grade: ['..#..S_',
+              '#....._',
+              '.#.....',
+              '...##.#',
+              '......#',
+              '.......',
+              '#..#...'] }
+];
+
+function prepararNivel(def) {
+    const linhas = def.grade.length, colunas = def.grade[0].length;
+    const chao = [], indice = {};
+    let total = 0, inicio = null;
+    for (let r = 0; r < linhas; r++) {
+        chao[r] = [];
+        for (let c = 0; c < colunas; c++) {
+            const ch = def.grade[r][c];
+            const livre = ch === '.' || ch === 'S';
+            chao[r][c] = livre;
+            if (livre) { indice[r + ',' + c] = total++; }
+            if (ch === 'S') inicio = [r, c];
+        }
+    }
+    const nivel = { ...def, linhas, colunas, chao, indice, total, inicio, rotas: {}, _mapa: null };
+    for (let r = 0; r < linhas; r++) for (let c = 0; c < colunas; c++) {
+        if (!chao[r][c]) continue;
+        for (const d of 'UDLR') {
+            const caminho = deslizar(nivel, r, c, d);
+            let mask = 0n;
+            caminho.forEach(([rr, cc]) => { mask |= 1n << BigInt(indice[rr + ',' + cc]); });
+            nivel.rotas[r + ',' + c + ',' + d] = { caminho, mask };
+        }
+    }
+    return nivel;
+}
+
+function ehChao(nivel, r, c) {
+    return r >= 0 && c >= 0 && r < nivel.linhas && c < nivel.colunas && nivel.chao[r][c];
+}
+
+// quadrados percorridos ao deslizar de (r, c) na direção d, até bater numa pedra ou na borda
+function deslizar(nivel, r, c, d) {
+    const [dr, dc] = DIRS[d];
+    const caminho = [];
+    let rr = r + dr, cc = c + dc;
+    while (ehChao(nivel, rr, cc)) { caminho.push([rr, cc]); rr += dr; cc += dc; }
+    return caminho;
+}
+
+function mascara(nivel, plantados) {
+    let m = 0n;
+    plantados.forEach(k => { m |= 1n << BigInt(nivel.indice[k]); });
+    return m;
+}
+
+// Mapa de todos os estados alcançáveis da fase, com a distância (em jogadas) até completá-la.
+// Serve para a dica e para conferir que a fase não tem beco sem saída.
+function construirMapa(nivel) {
+    const cheia = (1n << BigInt(nivel.total)) - 1n;
+    const m0 = 1n << BigInt(nivel.indice[nivel.inicio.join(',')]);
+    const chave = (r, c, m) => r + ',' + c + ',' + m;
+    const ids = new Map([[chave(nivel.inicio[0], nivel.inicio[1], m0), 0]]);
+    const estados = [{ r: nivel.inicio[0], c: nivel.inicio[1], m: m0 }];
+    const arestas = [[]];
+    for (let i = 0; i < estados.length; i++) {
+        const e = estados[i];
+        if (e.m === cheia) continue;
+        for (const d of 'UDLR') {
+            const rota = nivel.rotas[e.r + ',' + e.c + ',' + d];
+            if (rota.caminho.length === 0) continue;
+            const [fr, fc] = rota.caminho[rota.caminho.length - 1];
+            const nm = e.m | rota.mask;
+            const k = chave(fr, fc, nm);
+            let j = ids.get(k);
+            if (j === undefined) { j = estados.length; ids.set(k, j); estados.push({ r: fr, c: fc, m: nm }); arestas.push([]); }
+            arestas[i].push([j, d]);
+        }
+    }
+    const n = estados.length;
+    const pred = Array.from({ length: n }, () => []);
+    arestas.forEach((lista, i) => lista.forEach(([j]) => pred[j].push(i)));
+    const dist = new Int32Array(n).fill(-1);
+    const fila = [];
+    estados.forEach((e, i) => { if (e.m === cheia) { dist[i] = 0; fila.push(i); } });
+    for (let q = 0; q < fila.length; q++) {
+        const j = fila[q];
+        for (const i of pred[j]) if (dist[i] < 0) { dist[i] = dist[j] + 1; fila.push(i); }
+    }
+    return { ids, estados, arestas, dist, chave };
+}
+
+// melhor direção a partir do estado atual: { dir, faltam } (ou null se não houver saída)
+function proximaJogada(nivel, r, c, plantados) {
+    if (!nivel._mapa) nivel._mapa = construirMapa(nivel);
+    const mp = nivel._mapa;
+    const i = mp.ids.get(mp.chave(r, c, mascara(nivel, plantados)));
+    if (i === undefined || mp.dist[i] < 0) return null;
+    if (mp.dist[i] === 0) return { dir: '', faltam: 0 };
+    let melhor = null, md = Infinity;
+    for (const [j, d] of mp.arestas[i]) if (mp.dist[j] >= 0 && mp.dist[j] < md) { md = mp.dist[j]; melhor = d; }
+    return { dir: melhor, faltam: mp.dist[i] };
+}
+
+// 3 árvores = jogadas mínimas; 2 = até 50% acima do mínimo; 1 = fase concluída
+function estrelas(jogadas, otimo) {
+    if (jogadas <= otimo) return 3;
+    if (jogadas <= Math.ceil(otimo * 1.5)) return 2;
+    return 1;
+}
+/* ===== fim da lógica ===== */
+
+/* ============================================================
+   INTERFACE
+   ============================================================ */
+const REDUZIR = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PASSO = REDUZIR ? 20 : 80; // ms por quadrado percorrido
+
+const ARVORES_SVG = {
+    copa: `<svg viewBox="0 0 40 46" aria-hidden="true"><ellipse cx="20" cy="44" rx="11" ry="2.6" fill="rgba(40,70,20,.28)"/><rect x="17.8" y="26" width="4.6" height="17" rx="2" fill="#7a4e2d"/><circle cx="20" cy="17" r="13" fill="#3f9d3a"/><circle cx="12.5" cy="22" r="8.5" fill="#4aae43"/><circle cx="27.5" cy="22" r="8.5" fill="#4aae43"/><circle cx="16" cy="12" r="5.5" fill="#6cc65f" opacity=".85"/></svg>`,
+    pinheiro: `<svg viewBox="0 0 40 46" aria-hidden="true"><ellipse cx="20" cy="44" rx="10" ry="2.4" fill="rgba(40,70,20,.28)"/><rect x="18.2" y="33" width="3.6" height="10" rx="1.2" fill="#6b4426"/><polygon points="20,15 37,36 3,36" fill="#2f7d46"/><polygon points="20,7 33,26 7,26" fill="#37915a"/><polygon points="20,0.5 29,16 11,16" fill="#43a566"/></svg>`,
+    ipeAmarelo: `<svg viewBox="0 0 40 46" aria-hidden="true"><ellipse cx="20" cy="44" rx="11" ry="2.6" fill="rgba(40,70,20,.28)"/><rect x="17.8" y="27" width="4.6" height="16" rx="2" fill="#7a4e2d"/><circle cx="20" cy="17" r="13" fill="#f0b81f"/><circle cx="12" cy="22" r="8.5" fill="#f5c93a"/><circle cx="28" cy="22" r="8.5" fill="#f5c93a"/><circle cx="16" cy="12" r="5" fill="#fbe27e"/><circle cx="26" cy="14" r="2.4" fill="#fbe27e"/></svg>`,
+    ipeRosa: `<svg viewBox="0 0 40 46" aria-hidden="true"><ellipse cx="20" cy="44" rx="11" ry="2.6" fill="rgba(40,70,20,.28)"/><rect x="17.8" y="27" width="4.6" height="16" rx="2" fill="#7a4e2d"/><circle cx="20" cy="17" r="13" fill="#d96aa3"/><circle cx="12" cy="22" r="8.5" fill="#e583b6"/><circle cx="28" cy="22" r="8.5" fill="#e583b6"/><circle cx="16" cy="12" r="5" fill="#f4b3d1"/><circle cx="26" cy="14" r="2.4" fill="#f4b3d1"/></svg>`,
+    arbusto: `<svg viewBox="0 0 40 46" aria-hidden="true"><ellipse cx="20" cy="44" rx="13" ry="2.6" fill="rgba(40,70,20,.28)"/><circle cx="12.5" cy="35" r="8" fill="#4aae43"/><circle cx="27.5" cy="35" r="8" fill="#4aae43"/><circle cx="20" cy="30" r="10" fill="#5cbe52"/><circle cx="16.5" cy="27" r="3.6" fill="#86d97a" opacity=".85"/></svg>`
+};
+
+// Pedras facetadas, em dois formatos (alta e larga); a direção é sorteada por quadrado
+const SEAM = 'rgba(35,40,33,.5)';
+const PEDRAS_SVG = [
+    `<svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="35.5" rx="16" ry="3.2" fill="rgba(0,0,0,.22)"/>
+      <polygon points="6,18 12,9 22,5 22,15 13,19" fill="#bcc1b6"/><polygon points="22,5 31,9 36,19 27,22 22,15" fill="#a0a59a"/>
+      <polygon points="5,29 6,18 13,19 20,29 12,34" fill="#878c82"/><polygon points="13,19 22,15 27,22 20,29" fill="#979c91"/>
+      <polygon points="36,19 35,29 27,34 20,29 27,22" fill="#6b7068"/><polygon points="12,34 20,29 27,34" fill="#5d625a"/>
+      <path d="M6 18 L12 9 L22 5 L31 9 L36 19 L35 29 L27 34 L12 34 L5 29 Z M22 5 L22 15 L13 19 M22 15 L27 22 L36 19 M13 19 L20 29 L27 22 M20 29 L12 34 M20 29 L27 34" fill="none" stroke="${SEAM}" stroke-width=".8" stroke-linejoin="round"/>
+      <path d="M12 9 L22 5 L31 9" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="M26 24 l-2 3.5 l2 3" fill="none" stroke="rgba(30,34,28,.55)" stroke-width=".8" stroke-linecap="round"/></svg>`,
+    `<svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="35.5" rx="17" ry="3.2" fill="rgba(0,0,0,.22)"/>
+      <polygon points="5,22 11,15 20,13 19,21 10,24" fill="#b7bcb1"/><polygon points="20,13 29,15 35,22 28,25 19,21" fill="#9ea398"/>
+      <polygon points="3,30 5,22 10,24 17,31 9,34" fill="#878c82"/><polygon points="10,24 19,21 28,25 24,31 17,31" fill="#999e93"/>
+      <polygon points="35,22 37,30 31,34 24,31 28,25" fill="#6b7068"/><polygon points="9,34 17,31 24,31 31,34" fill="#5d625a"/>
+      <path d="M5 22 L11 15 L20 13 L29 15 L35 22 L37 30 L31 34 L9 34 L3 30 Z M20 13 L19 21 L10 24 M19 21 L28 25 M10 24 L17 31 M28 25 L24 31 M17 31 L24 31 M17 31 L9 34 M24 31 L31 34" fill="none" stroke="${SEAM}" stroke-width=".8" stroke-linejoin="round"/>
+      <path d="M11 15 L20 13 L29 15" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="M14 26 l2 2.5 l-1 3" fill="none" stroke="rgba(30,34,28,.55)" stroke-width=".8" stroke-linecap="round"/></svg>`
+];
+
+const el = id => document.getElementById(id);
+const tab = el('tabuleiro');
+const semente = document.createElement('div');
+semente.id = 'semente';
+semente.innerHTML = '<div class="sombra"></div><div class="salto"><div class="corpo"></div><div class="brilho"></div><div class="brotinho"></div></div><div class="dica-seta"></div>';
+const corpo = semente.querySelector('.corpo');
+const salto = semente.querySelector('.salto');
+const seta = semente.querySelector('.dica-seta');
+
+const niveisProntos = NIVEIS.map(prepararNivel);
+let nivel = null, indiceNivel = 0, tiles = [], telaAtual = 'catalogo';
+let estado = null, timers = [], rotacao = 0, avisoTimer = null;
+
+/* ---------- progresso do jogador (neste teste, fica no navegador) ---------- */
+const CHAVE_PROGRESSO = 'ecoReflorestar.progresso.v1';
+function lerProgresso() { try { return JSON.parse(localStorage.getItem(CHAVE_PROGRESSO)) || {}; } catch (e) { return {}; } }
+function salvarProgresso() { try { localStorage.setItem(CHAVE_PROGRESSO, JSON.stringify(progresso)); } catch (e) { /* sem armazenamento: vale só nesta sessão */ } }
+let progresso = lerProgresso();
+
+function limparTimers() { timers.forEach(clearTimeout); timers = []; }
+function agendar(fn, ms) { timers.push(setTimeout(fn, ms)); }
+function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
+
+function aviso(texto, ms = 3200) {
+    const a = el('aviso');
+    a.textContent = texto;
+    clearTimeout(avisoTimer);
+    if (texto) avisoTimer = setTimeout(() => { a.textContent = ''; }, ms);
+}
+
+/* ---------- telas ---------- */
+function mostrarTela(nome) {
+    telaAtual = nome;
+    el('tela-catalogo').hidden = nome !== 'catalogo';
+    el('tela-jogo').hidden = nome !== 'jogo';
+    window.scrollTo(0, 0);
+}
+
+function arvoresNota(n, svgPorArvore) {
+    const caixa = criar('div', svgPorArvore);
+    caixa.setAttribute('aria-label', `${n} de 3 árvores`);
+    for (let i = 0; i < 3; i++) {
+        const s = criar('span', i < n ? '' : 'apagada');
+        s.innerHTML = ARVORES_SVG.copa;
+        s.style.display = 'inline-flex';
+        caixa.appendChild(s);
+    }
+    return caixa;
+}
+
+function criarPrevia(n, feita) {
+    const caixa = criar('div', 'previa-caixa');
+    const p = criar('div', 'previa' + (feita ? ' feita' : ''));
+    p.style.setProperty('--cols', n.colunas);
+    p.style.setProperty('--rows', n.linhas);
+    for (let r = 0; r < n.linhas; r++) for (let c = 0; c < n.colunas; c++) {
+        const ch = n.grade[r][c];
+        p.appendChild(criar('span', ch === '_' ? 'p-vazio' : ch === '#' ? 'p-pedra' : ch === 'S' ? 'p-chao p-inicio' : 'p-chao'));
+    }
+    caixa.appendChild(p);
+    return caixa;
+}
+
+function mostrarCatalogo() {
+    limparTimers();
+    fecharPopup();
+    const lista = el('lista-fases');
+    lista.innerHTML = '';
+    let total = 0;
+    const proxima = niveisProntos.findIndex(n => !progresso[n.id]);
+    niveisProntos.forEach((n, i) => {
+        const reg = progresso[n.id];
+        const e = reg ? estrelas(reg.melhor, n.otimo) : 0;
+        total += e;
+        const card = criar('button', 'card-nivel' + (i === proxima ? ' proxima' : ''));
+        card.type = 'button';
+        card.setAttribute('aria-label', `Fase ${n.id}, ${n.nome}. Mínimo de ${n.otimo} jogadas. ` + (reg ? `Seu melhor: ${reg.melhor} jogadas, ${e} de 3 árvores.` : 'Ainda não jogada.'));
+        card.appendChild(criarPrevia(n, !!reg));
+        const info = criar('div', 'card-info');
+        if (i === proxima) info.appendChild(criar('span', 'card-badge', 'Próxima'));
+        info.appendChild(criar('strong', '', `Fase ${n.id}`));
+        info.appendChild(criar('span', 'card-nome', n.nome));
+        info.appendChild(criar('span', 'card-linha', `Mínimo: ${n.otimo} jogadas`));
+        info.appendChild(criar('span', 'card-linha', reg ? `Seu melhor: ${reg.melhor} jogadas` : 'Ainda não jogada'));
+        info.appendChild(arvoresNota(e, 'arvores-nota'));
+        card.appendChild(info);
+        card.onclick = () => carregarNivel(i);
+        lista.appendChild(card);
+    });
+    el('total-arvores').textContent = `${total} de ${3 * NIVEIS.length}`;
+    el('cat-icone').innerHTML = ARVORES_SVG.copa;
+    el('cat-icone').style.display = 'inline-flex';
+    mostrarTela('catalogo');
+}
+
+/* ---------- jogo ---------- */
+function posicionarSemente(r, c) {
+    semente.style.setProperty('--dur', '0ms');
+    semente.style.setProperty('--r', r);
+    semente.style.setProperty('--c', c);
+}
+
+function carregarNivel(i) {
+    limparTimers();
+    fecharPopup();
+    indiceNivel = i;
+    nivel = niveisProntos[i];
+    const chaveInicio = nivel.inicio.join(',');
+    estado = { r: nivel.inicio[0], c: nivel.inicio[1], plantados: new Set([chaveInicio]), jogadas: 0, historico: [], animando: false, pendente: null, venceu: false };
+    mostrarTela('jogo');
+
+    tab.className = '';
+    tab.innerHTML = '';
+    tab.style.setProperty('--cols', nivel.colunas);
+    tab.style.setProperty('--rows', nivel.linhas);
+    tiles = [];
+    const existe = (r, c) => r >= 0 && c >= 0 && r < nivel.linhas && c < nivel.colunas && nivel.grade[r][c] !== '_';
+    for (let r = 0; r < nivel.linhas; r++) {
+        tiles[r] = [];
+        for (let c = 0; c < nivel.colunas; c++) {
+            const ch = nivel.grade[r][c];
+            const t = criar('div', 'tile');
+            if (ch === '_') {
+                t.classList.add('vazio');
+            } else {
+                if ((r + c) % 2) t.classList.add('par');
+                if (!existe(r - 1, c) && !existe(r, c - 1)) t.classList.add('c-tl');
+                if (!existe(r - 1, c) && !existe(r, c + 1)) t.classList.add('c-tr');
+                if (!existe(r + 1, c) && !existe(r, c - 1)) t.classList.add('c-bl');
+                if (!existe(r + 1, c) && !existe(r, c + 1)) t.classList.add('c-br');
+                if (ch === '#') {
+                    const h = (((r + 1) * 2654435761) ^ ((c + 1) * 40503) ^ (nivel.id * 97)) >>> 0;
+                    const p = criar('div', 'rocha');
+                    p.innerHTML = PEDRAS_SVG[h % PEDRAS_SVG.length];
+                    if ((h >> 3) % 2) p.firstElementChild.style.transform = 'scaleX(-1)';
+                    t.appendChild(p);
+                }
+            }
+            tab.appendChild(t);
+            tiles[r][c] = t;
+        }
+    }
+    tab.appendChild(semente);
+    seta.classList.remove('mostrar');
+    corpo.style.transition = 'none';
+    rotacao = 0;
+    corpo.style.rotate = '0deg';
+    posicionarSemente(estado.r, estado.c);
+    void semente.offsetWidth;
+
+    el('fase-titulo').textContent = `Fase ${nivel.id}`;
+    el('fase-nome').textContent = nivel.nome;
+    el('minimo').textContent = nivel.otimo;
+    atualizarPainel();
+    aviso('');
+    agendar(() => mostrarArvore(estado.r, estado.c), 250); // a semente já nasce plantando
+}
+
+function atualizarPainel() {
+    el('jogadas').textContent = estado.jogadas;
+    el('arvores').textContent = `${estado.plantados.size}/${nivel.total}`;
+    const pct = Math.round(100 * estado.plantados.size / nivel.total);
+    el('barra-fill').style.width = pct + '%';
+    el('barra').setAttribute('aria-valuenow', pct);
+    el('btn-desfazer').disabled = estado.historico.length === 0 || estado.animando;
+    el('btn-dica').disabled = estado.venceu;
+}
+
+function criarArvore(r, c) {
+    const tipos = nivel.arvores;
+    const h = (((r + 1) * 73856093) ^ ((c + 1) * 19349663) ^ (nivel.id * 83492791)) >>> 0;
+    const a = criar('div', 'arvore');
+    a.innerHTML = ARVORES_SVG[tipos[h % tipos.length]];
+    a.style.setProperty('--esc', (0.92 + (h % 17) / 100).toFixed(2));
+    a.style.setProperty('--atraso', ((h % 23) / 10).toFixed(1) + 's');
+    return a;
+}
+
+function folhinhas(t) {
+    if (REDUZIR) return;
+    for (let i = 0; i < 4; i++) {
+        const f = criar('span', 'folhinha');
+        const ang = Math.random() * Math.PI * 2, dist = 0.4 + Math.random() * 0.4;
+        f.style.setProperty('--dx', (Math.cos(ang) * dist).toFixed(2));
+        f.style.setProperty('--dy', (Math.sin(ang) * dist - 0.2).toFixed(2));
+        f.style.setProperty('--rot', Math.round(Math.random() * 200 - 100) + 'deg');
+        f.addEventListener('animationend', () => f.remove());
+        t.appendChild(f);
+    }
+}
+
+// parte visual: chão fica verde e a árvore brota
+function mostrarArvore(r, c) {
+    const t = tiles[r][c];
+    if (t.classList.contains('plantado')) return;
+    t.classList.add('plantado');
+    t.appendChild(criarArvore(r, c));
+    folhinhas(t);
+}
+
+function plantar(r, c) {
+    estado.plantados.add(r + ',' + c);
+    mostrarArvore(r, c);
+    atualizarPainel();
+}
+
+function despantar(k) {
+    const [r, c] = k.split(',').map(Number);
+    const t = tiles[r][c];
+    t.classList.remove('plantado');
+    const a = t.querySelector('.arvore');
+    if (a) a.remove();
+}
+
+function limparDica() { seta.classList.remove('mostrar'); }
+
+function bater(dir) {
+    if (!salto.animate || REDUZIR) return;
+    const [dr, dc] = DIRS[dir];
+    salto.animate([{ translate: '0 0' }, { translate: `${dc * 5}px ${dr * 5}px` }, { translate: '0 0' }], { duration: 170, easing: 'ease-out' });
+}
+
+function achatar(dir) {
+    if (!salto.animate || REDUZIR) return;
+    const h = dir === 'L' || dir === 'R';
+    salto.animate([
+        { scale: '1 1' },
+        { scale: h ? '0.82 1.16' : '1.16 0.82' },
+        { scale: h ? '1.06 0.95' : '0.95 1.06' },
+        { scale: '1 1' }
+    ], { duration: 260, easing: 'ease-out' });
+}
+
+function mover(dir) {
+    if (telaAtual !== 'jogo' || !estado || estado.venceu || el('popup-fase')) return;
+    if (estado.animando) { estado.pendente = dir; return; }
+    const rota = nivel.rotas[estado.r + ',' + estado.c + ',' + dir];
+    const n = rota.caminho.length;
+    if (n === 0) { bater(dir); return; }
+
+    estado.historico.push({ r: estado.r, c: estado.c, plantados: new Set(estado.plantados), jogadas: estado.jogadas });
+    estado.animando = true;
+    estado.pendente = null;
+    limparDica();
+    aviso('');
+
+    const dur = n * PASSO;
+    semente.style.setProperty('--dur', dur + 'ms');
+    rotacao += ((dir === 'R' || dir === 'D') ? 1 : -1) * n * 175;
+    corpo.style.transition = `rotate ${dur}ms linear`;
+    corpo.style.rotate = rotacao + 'deg';
+    const [fr, fc] = rota.caminho[n - 1];
+    semente.style.setProperty('--r', fr);
+    semente.style.setProperty('--c', fc);
+
+    rota.caminho.forEach(([rr, cc], i) => agendar(() => plantar(rr, cc), Math.max(0, (i + 1) * PASSO - PASSO * 0.25)));
+    atualizarPainel();
+    agendar(() => terminarMovimento(fr, fc, dir), dur + 30);
+}
+
+function terminarMovimento(r, c, dir) {
+    estado.r = r; estado.c = c;
+    estado.jogadas++;
+    estado.animando = false;
+    achatar(dir);
+    atualizarPainel();
+    if (estado.plantados.size === nivel.total) { vencer(); return; }
+    if (estado.pendente) { const d = estado.pendente; estado.pendente = null; mover(d); }
+}
+
+function desfazer() {
+    if (!estado || estado.animando || estado.venceu || estado.historico.length === 0) return;
+    const h = estado.historico.pop();
+    [...estado.plantados].filter(k => !h.plantados.has(k)).forEach(despantar);
+    estado.plantados = new Set(h.plantados);
+    estado.r = h.r; estado.c = h.c; estado.jogadas = h.jogadas;
+    corpo.style.transition = 'none';
+    posicionarSemente(h.r, h.c);
+    limparDica();
+    aviso('');
+    atualizarPainel();
+}
+
+function dica() {
+    if (!estado || estado.animando || estado.venceu) return;
+    const p = proximaJogada(nivel, estado.r, estado.c, estado.plantados);
+    if (!p || !p.dir) {
+        aviso('Não consegui calcular uma dica agora. Tente reiniciar a fase.', 4500);
+        return;
+    }
+    seta.style.setProperty('--ang', ANGULO_DIR[p.dir] + 'deg');
+    seta.classList.add('mostrar');
+    aviso(`Dica: deslize ${NOME_DIR[p.dir]}. Faltam ${p.faltam === 1 ? '1 jogada' : p.faltam + ' jogadas'} no mínimo.`, 4500);
+}
+
+function vencer() {
+    estado.venceu = true;
+    atualizarPainel();
+    [...tab.querySelectorAll('.arvore')].forEach((a, i) => a.style.setProperty('--ordem', i));
+    tab.classList.add('festa');
+
+    const antes = progresso[nivel.id] ? progresso[nivel.id].melhor : null;
+    const recorde = antes !== null && estado.jogadas < antes;
+    if (antes === null || estado.jogadas < antes) {
+        progresso[nivel.id] = { melhor: estado.jogadas };
+        salvarProgresso();
+    }
+    agendar(() => abrirPopupVitoria(antes, recorde), REDUZIR ? 200 : 1300);
+}
+
+/* ---------- popup ---------- */
+function fecharPopup() { const p = el('popup-fase'); if (p) p.remove(); }
+
+function abrirPopupVitoria(antes, recorde) {
+    const ultima = indiceNivel === NIVEIS.length - 1;
+    const e = estrelas(estado.jogadas, nivel.otimo);
+
+    const overlay = criar('div'); overlay.id = 'popup-fase';
+    const card = criar('div', 'pf-card'); card.tabIndex = -1;
+    card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+    card.appendChild(criar('div', 'pf-emoji', ultima ? '🌳' : '🌱'));
+    card.appendChild(criar('h2', '', e === 3 ? 'Fase perfeita!' : 'Fase concluída!'));
+    card.appendChild(criar('p', 'pf-msg', `Você reflorestou: ${nivel.nome}.`));
+    if (recorde) card.appendChild(criar('span', 'pf-recorde', 'Novo recorde!'));
+
+    card.appendChild(arvoresNota(e, 'pf-estrelas'));
+
+    const caixa = criar('div', 'pf-caixa');
+    caixa.appendChild(criar('strong', '', String(estado.jogadas)));
+    caixa.appendChild(criar('span', '', estado.jogadas === 1 ? 'jogada' : 'jogadas'));
+    card.appendChild(caixa);
+    card.appendChild(criar('p', 'pf-msg', e === 3
+        ? 'Você usou o mínimo possível de jogadas.'
+        : `Mínimo possível: ${nivel.otimo} jogadas. Tente de novo para ganhar mais árvores!`));
+    if (antes !== null && !recorde) card.appendChild(criar('p', 'pf-msg', `Seu melhor continua sendo ${antes} jogadas.`));
+
+    const botoes = criar('div', 'pf-botoes');
+    const btn = (texto, classe, fn) => { const b = criar('button', 'pf-btn ' + classe, texto); b.type = 'button'; b.onclick = fn; return b; };
+    if (!ultima) botoes.appendChild(btn('Próxima fase', 'principal', () => carregarNivel(indiceNivel + 1)));
+    botoes.appendChild(btn('Repetir esta fase', ultima ? 'principal' : 'secundario', () => carregarNivel(indiceNivel)));
+    botoes.appendChild(btn('Ver todas as fases', 'secundario', mostrarCatalogo));
+    card.appendChild(botoes);
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    card.focus();
+}
+
+/* ---------- entrada: teclado, deslize e botões ---------- */
+const TECLAS = { ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R', w: 'U', s: 'D', a: 'L', d: 'R', W: 'U', S: 'D', A: 'L', D: 'R' };
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && telaAtual === 'jogo' && !el('popup-fase')) { mostrarCatalogo(); return; }
+    const d = TECLAS[e.key];
+    if (!d || e.ctrlKey || e.metaKey || e.altKey || telaAtual !== 'jogo') return;
+    e.preventDefault();
+    mover(d);
+});
+
+let toque = null;
+el('area').addEventListener('pointerdown', e => { toque = { x: e.clientX, y: e.clientY }; });
+window.addEventListener('pointerup', e => {
+    if (!toque) return;
+    const dx = e.clientX - toque.x, dy = e.clientY - toque.y;
+    toque = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    mover(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'R' : 'L') : (dy > 0 ? 'D' : 'U'));
+});
+window.addEventListener('pointercancel', () => { toque = null; });
+
+el('btn-desfazer').onclick = desfazer;
+el('btn-dica').onclick = dica;
+el('btn-reiniciar').onclick = () => carregarNivel(indiceNivel);
+el('btn-fases').onclick = mostrarCatalogo;
+
+// apagar progresso (só para testes): pede um segundo clique
+let apagarTimer = null;
+el('btn-apagar').onclick = () => {
+    const b = el('btn-apagar');
+    if (b.dataset.pronto) {
+        progresso = {};
+        salvarProgresso();
+        b.textContent = 'Apagar progresso (teste)';
+        delete b.dataset.pronto;
+        clearTimeout(apagarTimer);
+        mostrarCatalogo();
+        return;
+    }
+    b.dataset.pronto = '1';
+    b.textContent = 'Clique de novo para confirmar';
+    apagarTimer = setTimeout(() => { b.textContent = 'Apagar progresso (teste)'; delete b.dataset.pronto; }, 3500);
+};
+
+mostrarCatalogo();
+</script>
+</body>
+</html>

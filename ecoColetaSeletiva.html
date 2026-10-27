@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco Coleta Seletiva</title>
+    <style>
+        :root {
+            --verde: #2e7d32; --verde-escuro: #1b5e20; --fundo: #e8f5e9; --cartao: #f1f8e9;
+            --borda: #81c784; --suave: #558b2f;
+            --campo-h: clamp(260px, calc(100vh - 236px), 640px);
+            --bin-h: 78px;
+        }
+        @supports (height: 100svh) { :root { --campo-h: clamp(260px, calc(100svh - 236px), 640px); } }
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+        body { margin: 0; padding: 8px; min-height: 100vh; display: flex; justify-content: center; background: var(--fundo); color: var(--verde); font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; -webkit-touch-callout: none; }
+        .app { width: 100%; max-width: 560px; }
+        button { font-family: inherit; }
+        :focus-visible { outline: 3px solid var(--verde); outline-offset: 2px; }
+
+        /* ---------- topo ---------- */
+        .topo { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin: 2px 0 8px; }
+        .voltar { justify-self: start; text-decoration: none; color: var(--verde); font-weight: 700; font-size: 0.9rem; background: var(--cartao); border: 2px solid var(--borda); border-radius: 999px; padding: 6px 14px; }
+        .voltar:hover { background: #c8e6c9; }
+        h1 { margin: 0; font-size: 1.4rem; text-align: center; }
+
+        .jogo { background: #fff; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 10px;
+            display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "hud" "campo" "controles"; }
+        .hud { grid-area: hud; } .campo { grid-area: campo; } .controles { grid-area: controles; } .instrucao { grid-area: instrucao; display: none; }
+
+        /* ---------- placar ---------- */
+        .hud { display: grid; grid-template-columns: 1fr auto 1fr auto; align-items: end; gap: 10px; }
+        .hud-bloco span { display: block; font-size: 0.72rem; color: var(--suave); }
+        .hud-bloco b { font-size: 1.5rem; line-height: 1.1; display: inline-block; }
+        .hud-bloco.centro { text-align: center; }
+        .hud-bloco.centro b { font-size: 1.05rem; background: var(--cartao); border: 2px solid var(--borda); border-radius: 999px; padding: 2px 12px; }
+        .hud-bloco.vidas { text-align: right; }
+        .vidas-lista { display: inline-flex; gap: 3px; }
+        .vida svg { width: 24px; height: 24px; display: block; }
+        .btn-pausa { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--borda); background: var(--cartao); color: var(--verde); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 0.95rem; padding: 0; }
+        .btn-pausa:hover { background: #c8e6c9; }
+        .btn-pausa svg { width: 15px; height: 15px; flex: none; }
+        .btn-pausa .txt { display: none; }
+        .vida.perdida svg { filter: grayscale(1); opacity: 0.28; animation: quebrar 0.5s ease-out; }
+        @keyframes quebrar { 0% { transform: scale(1.4); } 40% { transform: scale(0.8) rotate(-12deg); } 100% { transform: scale(1); } }
+        .pop { animation: pop 0.25s ease-out; }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.35); color: #1b5e20; } 100% { transform: scale(1); } }
+
+        /* ---------- campo ---------- */
+        .campo { position: relative; height: var(--campo-h); border-radius: 14px; overflow: hidden; background: linear-gradient(180deg, #e3f2fb 0%, #eef7e6 62%, #d9eccb 100%); box-shadow: inset 0 0 0 2px #d4e8c4; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+        .faixas { position: absolute; left: 0; right: 0; top: 0; bottom: var(--bin-h); display: grid; grid-template-columns: repeat(5, 1fr); }
+        .faixa { border-left: 2px dashed rgba(46, 125, 50, 0.14); transition: background 0.12s; }
+        .faixa:first-child { border-left: none; }
+        .faixa.ativa { background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.7) 100%); }
+
+        /* lixeiras */
+        .lixeiras { position: absolute; left: 0; right: 0; bottom: 0; height: var(--bin-h); display: grid; grid-template-columns: repeat(5, 1fr); padding: 0 3px; }
+        .lixeira { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 0 3px 5px; transition: transform 0.12s; }
+        .lixeira.ativa { transform: translateY(-4px); }
+        .tampa { width: 100%; height: 13px; border-radius: 6px 6px 3px 3px; background: var(--cor-escura); position: relative; transform-origin: 8% 100%; transition: transform 0.15s; z-index: 2; }
+        .tampa::before { content: ''; position: absolute; left: 50%; top: -4px; width: 26%; height: 5px; translate: -50% 0; border-radius: 3px 3px 0 0; background: var(--cor-escura); }
+        .corpo-lix { width: 90%; flex: 1; min-height: 0; background: var(--cor); clip-path: polygon(0 0, 100% 0, 94% 100%, 6% 100%); border-radius: 0 0 8px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+        .reciclar { width: 30px; height: 30px; display: block; }
+        .reciclar svg { width: 100%; height: 100%; display: block; }
+        .lix-nome { font-size: 0.68rem; font-weight: 700; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.3); }
+        .lixeira.abre .tampa { animation: abrir 0.45s ease-out; }
+        @keyframes abrir { 0% { transform: rotate(0); } 30% { transform: rotate(-28deg) translateY(-2px); } 100% { transform: rotate(0); } }
+        .lixeira.erro { animation: tremer 0.4s; }
+        .lixeira.erro .corpo-lix { filter: brightness(0.7) saturate(1.4); }
+        @keyframes tremer { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+
+        /* item que cai */
+        .item { position: absolute; top: 0; left: calc(var(--lane, 2) * 20%); width: 20%; display: flex; flex-direction: column; align-items: center; transition: left 0.1s ease-out; will-change: transform; z-index: 3; }
+        .item-nome { font-size: 0.68rem; font-weight: 700; white-space: nowrap; background: rgba(255,255,255,.94); color: var(--verde-escuro); border-radius: 999px; padding: 1px 8px; margin-bottom: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+        .item-arte { width: min(78%, 64px); aspect-ratio: 1; }
+        .item-arte svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 3px 2px rgba(0,0,0,.2)); animation: gira 2.2s ease-in-out infinite alternate; }
+        @keyframes gira { from { rotate: -7deg; } to { rotate: 7deg; } }
+        .item.dentro .item-arte { animation: entrar 0.4s ease-in forwards; }
+        @keyframes entrar { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(34px) scale(0.3); opacity: 0; } }
+        .item.errou .item-arte { animation: rebater 0.6s ease-out forwards; }
+        @keyframes rebater { 0% { transform: translate(0,0) rotate(0); opacity: 1; } 100% { transform: translate(var(--fuga, 40px), -50px) rotate(160deg); opacity: 0; } }
+        .item.dentro .item-nome, .item.errou .item-nome { opacity: 0; transition: opacity 0.15s; }
+
+        .mais { position: absolute; z-index: 5; font-weight: 800; font-size: 1.3rem; color: var(--verde); text-shadow: 0 1px 0 #fff, 0 0 6px #fff; pointer-events: none; animation: subir 0.8s ease-out forwards; translate: -50% 0; }
+        @keyframes subir { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-46px); } }
+        .dica-campo { position: absolute; left: 50%; top: 10px; translate: -50% 0; z-index: 7; max-width: 94%; background: rgba(255,255,255,.96); border: 2px solid #ef9a9a; color: #b71c1c; font-weight: 700; font-size: 0.85rem; line-height: 1.3; border-radius: 12px; padding: 6px 12px; text-align: center; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+        .dica-campo.mostrar { opacity: 1; }
+        .aviso-nivel { position: absolute; left: 50%; top: 60px; translate: -50% 0; z-index: 6; background: var(--verde); color: #fff; font-weight: 700; font-size: 0.9rem; border-radius: 999px; padding: 5px 16px; opacity: 0; pointer-events: none; white-space: nowrap; }
+        .aviso-nivel.mostrar { animation: avisoNivel 1.6s ease-out; }
+        @keyframes avisoNivel { 0% { opacity: 0; transform: translateY(-8px); } 15%, 75% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+
+        /* cobertura: início e pausa */
+        .cobertura { position: absolute; inset: 0; z-index: 8; background: rgba(255,255,255,.9); display: flex; align-items: center; justify-content: center; padding: 14px; text-align: center; }
+        .cobertura-caixa { width: 100%; max-width: 360px; }
+        .cobertura h2 { margin: 0 0 6px; font-size: 1.5rem; }
+        .cobertura p { margin: 0 0 10px; color: var(--suave); font-size: 0.92rem; line-height: 1.4; }
+        .regras { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; text-align: left; }
+        .regras li { display: flex; align-items: center; gap: 10px; background: var(--cartao); border: 2px solid var(--borda); border-radius: 10px; padding: 7px 10px; font-size: 0.88rem; color: var(--verde-escuro); font-weight: 600; }
+        .regras svg { width: 22px; height: 22px; flex: none; }
+        .btn-grande { width: 100%; padding: 13px; font-size: 1.1rem; font-weight: 700; border-radius: 10px; border: 2px solid var(--verde); background: var(--verde); color: #fff; cursor: pointer; transition: 0.2s; }
+        .btn-grande:hover { background: var(--verde-escuro); border-color: var(--verde-escuro); }
+        .btn-grande.sec { background: #fff; color: var(--verde); border-color: var(--borda); margin-top: 8px; }
+        .btn-grande.sec:hover { background: var(--cartao); }
+
+        /* ---------- dica e controles ---------- */
+        .controles { display: grid; grid-template-columns: 1fr 0.8fr 1fr; gap: 10px; }
+        .btn-controle { min-height: 60px; border-radius: 14px; border: 2px solid var(--verde); background: var(--verde); color: #fff; cursor: pointer; display: grid; place-items: center; transition: transform 0.08s, background 0.15s; touch-action: manipulation; user-select: none; -webkit-user-select: none; box-shadow: 0 4px 0 var(--verde-escuro); }
+        .btn-controle:active, .btn-controle.apertado { transform: translateY(3px); box-shadow: 0 1px 0 var(--verde-escuro); }
+        .btn-controle svg { width: 30px; height: 30px; }
+        .btn-controle.soltar { background: #f9a825; border-color: #c17900; box-shadow: 0 4px 0 #c17900; color: #fff; }
+        .btn-controle.soltar:active, .btn-controle.soltar.apertado { box-shadow: 0 1px 0 #c17900; }
+        .instrucao { margin: 0; text-align: center; font-size: 0.82rem; color: var(--suave); line-height: 1.45; }
+
+        /* ---------- popup de fim de jogo ---------- */
+        #popup-jogo { position: fixed; inset: 0; background: rgba(27,94,32,.45); display: flex; align-items: center; justify-content: center; padding: 15px; z-index: 9999; animation: pfFade .25s ease; overflow-y: auto; }
+        #popup-jogo .pf-card { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: 400px; width: 100%; padding: 26px 22px; text-align: center; animation: pfSobe .3s ease; outline: none; }
+        #popup-jogo .pf-emoji { font-size: 3rem; line-height: 1; }
+        #popup-jogo h2 { font-size: 1.6rem; margin: 10px 0 4px; color: var(--verde); }
+        #popup-jogo .pf-msg { color: var(--suave); font-size: .95rem; line-height: 1.4; margin: 0 0 4px; }
+        #popup-jogo .pf-recorde { display: inline-block; margin: 6px 0 0; padding: 3px 12px; border-radius: 999px; background: #fff3c4; border: 2px solid #f2c230; color: #7a5a00; font-weight: 700; font-size: .85rem; }
+        #popup-jogo .pf-caixa { background: var(--cartao); border: 2px solid var(--borda); border-radius: 12px; padding: 12px; margin: 14px 0 6px; }
+        #popup-jogo .pf-caixa strong { display: block; font-size: 2.2rem; color: var(--verde-escuro); }
+        #popup-jogo .pf-caixa span { font-size: .85rem; color: var(--suave); }
+        #popup-jogo .pf-botoes { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+        #popup-jogo .pf-btn { padding: 13px; font-size: 1.05rem; font-weight: bold; border-radius: 10px; cursor: pointer; transition: .2s; }
+        #popup-jogo .pf-btn.principal { background: var(--verde); color: #fff; border: 2px solid var(--verde); }
+        #popup-jogo .pf-btn.principal:hover { background: var(--verde-escuro); border-color: var(--verde-escuro); }
+        #popup-jogo .pf-btn.secundario { background: #fff; color: var(--verde); border: 2px solid var(--borda); }
+        #popup-jogo .pf-btn.secundario:hover { background: var(--cartao); }
+        @keyframes pfFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pfSobe { from { opacity: 0; transform: translateY(15px) scale(.97); } to { opacity: 1; transform: none; } }
+
+        @media (max-width: 420px) {
+            h1 { font-size: 1.1rem; }
+            .reciclar { width: 24px; height: 24px; }
+            .lix-nome { font-size: 0.62rem; }
+        }
+        /* computador: placar e botões ficam numa coluna ao lado, e o campo ocupa a altura toda */
+        @media (min-width: 760px) {
+            :root { --campo-h: clamp(340px, calc(100vh - 128px), 800px); --bin-h: 108px; }
+            @supports (height: 100svh) { :root { --campo-h: clamp(340px, calc(100svh - 128px), 800px); } }
+            body { padding: 12px; }
+            .app { max-width: 880px; }
+            .topo { margin: 4px 0 12px; }
+            h1 { font-size: 1.5rem; }
+            .jogo { padding: 16px; gap: 14px 22px; justify-content: center; grid-template-columns: minmax(0, 540px) 230px; align-items: start;
+                grid-template-areas: "campo hud" "campo controles" "campo instrucao"; grid-template-rows: auto auto 1fr; }
+            .hud { grid-template-columns: 1fr; gap: 14px; }
+            .hud-bloco, .hud-bloco.centro, .hud-bloco.vidas { text-align: left; }
+            .hud-bloco span { font-size: 0.85rem; margin-bottom: 2px; }
+            .hud-bloco b { font-size: 2.6rem; }
+            .hud-bloco.centro b { font-size: 1.15rem; padding: 3px 16px; }
+            .vida svg { width: 34px; height: 34px; }
+            .btn-pausa { width: 100%; height: 44px; border-radius: 12px; }
+            .btn-pausa .txt { display: inline; }
+            .reciclar { width: 40px; height: 40px; }
+            .lix-nome { font-size: 0.8rem; }
+            .tampa { height: 15px; }
+            .item-arte { width: min(78%, 84px); }
+            .item-nome { font-size: 0.75rem; }
+            .instrucao { display: block; text-align: left; }
+            .btn-controle { min-height: 66px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .item-arte svg, .aviso-nivel.mostrar, .mais, .lixeira.abre .tampa, .lixeira.erro { animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header class="topo">
+        <a class="voltar" href="menu.html">‹ Menu</a>
+        <h1>Eco Coleta Seletiva</h1>
+        <span></span>
+    </header>
+
+    <section class="jogo">
+        <div class="hud">
+            <div class="hud-bloco"><span>Pontos</span><b id="pontos">0</b></div>
+            <div class="hud-bloco centro"><span>Velocidade</span><b id="nivel">Nível 1</b></div>
+            <div class="hud-bloco vidas"><span>Vidas</span><div class="vidas-lista" id="vidas" role="img" aria-label="3 vidas"></div></div>
+            <button type="button" class="btn-pausa" id="btn-pausa" aria-label="Pausar o jogo">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.6" height="12" rx="1" fill="currentColor"/><rect x="9.4" y="2" width="3.6" height="12" rx="1" fill="currentColor"/></svg>
+                <span class="txt">Pausar</span>
+            </button>
+        </div>
+
+        <div class="campo" id="campo">
+            <div class="faixas" id="faixas"></div>
+            <div class="lixeiras" id="lixeiras"></div>
+            <div class="dica-campo" id="dica" role="status" aria-live="polite"></div>
+            <div class="aviso-nivel" id="aviso-nivel"></div>
+            <div class="cobertura" id="cobertura"></div>
+        </div>
+
+        <div class="controles">
+            <button type="button" class="btn-controle" id="btn-esq" aria-label="Mover o item para a esquerda">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4 L7 12 L15 20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" class="btn-controle soltar" id="btn-soltar" aria-label="Segurar para o item cair mais rápido">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8 L12 15 L19 8" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 15 L12 22 L19 15" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/></svg>
+            </button>
+            <button type="button" class="btn-controle" id="btn-dir" aria-label="Mover o item para a direita">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 L17 12 L9 20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+        </div>
+        <p class="instrucao">Teclado: setas ou A/D movem o item. Segure a seta para baixo (ou S) para cair mais rápido. P pausa o jogo.</p>
+    </section>
+</div>
+
+<script>
+/* ============================================================
+   DADOS
+   ============================================================ */
+const LIXEIRAS = [
+    { tipo: 'papel',    nome: 'Papel',    cor: '#1e88e5', escura: '#1565c0', icone: 'papel' },
+    { tipo: 'plastico', nome: 'Plástico', cor: '#e53935', escura: '#b71c1c', icone: 'pet' },
+    { tipo: 'vidro',    nome: 'Vidro',    cor: '#43a047', escura: '#2e7d32', icone: 'garrafa' },
+    { tipo: 'metal',    nome: 'Metal',    cor: '#f9a825', escura: '#c17900', icone: 'lata' },
+    { tipo: 'organico', nome: 'Orgânico', cor: '#8d6e63', escura: '#5d4037', icone: 'banana' }
+];
+
+const ITENS = [
+    { id: 'banana',  nome: 'Casca de banana',  tipo: 'organico', dica: 'Casca de banana é lixo orgânico: vai na lixeira marrom.' },
+    { id: 'pet',     nome: 'Garrafa PET',      tipo: 'plastico', dica: 'Garrafa PET é plástico: vai na lixeira vermelha.' },
+    { id: 'papel',   nome: 'Papel',            tipo: 'papel',    dica: 'Papel limpo vai na lixeira azul.' },
+    { id: 'lata',    nome: 'Lata de metal',    tipo: 'metal',    dica: 'Lata é metal: vai na lixeira amarela.' },
+    { id: 'pote',    nome: 'Pote de vidro',    tipo: 'vidro',    dica: 'Pote de vidro vai na lixeira verde.' },
+    { id: 'garrafa', nome: 'Garrafa de vidro', tipo: 'vidro',    dica: 'Garrafa de vidro vai na lixeira verde.' }
+];
+
+const ARTE = {
+    banana: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M29.5 5 q2.5-4 6-1.5 l-1.5 9 h-5 z" fill="#8a6a2a"/><path d="M26 11 q6-3.5 12 0 l1.5 24 q-7.5 5.5-15 0 z" fill="#fff2b0" stroke="#dcc25f" stroke-width="1.5"/><path d="M26 32 C13 35 6 46 9 59 C18 55 25 48 29 39 Z" fill="#f2c230" stroke="#b98e12" stroke-width="1.8" stroke-linejoin="round"/><path d="M38 32 C51 35 58 46 55 59 C46 55 39 48 35 39 Z" fill="#f2c230" stroke="#b98e12" stroke-width="1.8" stroke-linejoin="round"/><path d="M27.5 36 C25.5 46 27.5 54 32 61 C36.5 54 38.5 46 36.5 36 Z" fill="#f7d44f" stroke="#b98e12" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="48" r="1.6" fill="#8a5a12"/><circle cx="48" cy="48" r="1.6" fill="#8a5a12"/><circle cx="32" cy="50" r="1.4" fill="#8a5a12"/><circle cx="21" cy="42" r="1.2" fill="#8a5a12"/></svg>`,
+    pet: `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="25" y="3" width="14" height="8" rx="2.5" fill="#e53935" stroke="#a52421" stroke-width="1.5"/><path d="M27 11 h10 v6 c6 4 10 8 10 15 v21 q0 7-7 7 h-16 q-7 0-7-7 v-21 c0-7 4-11 10-15 z" fill="rgba(170,218,245,.9)" stroke="#4f9ac9" stroke-width="2" stroke-linejoin="round"/><rect x="17" y="30" width="30" height="13" fill="#fff" stroke="#4f9ac9" stroke-width="1.5"/><rect x="17" y="34" width="30" height="5" fill="#fb8c00"/><path d="M19 52 h26 M19 56 h26" stroke="#4f9ac9" stroke-width="1.5" opacity=".7"/><path d="M22 22 q-3 5-3 11" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".85"/></svg>`,
+    papel: `<svg viewBox="0 0 64 64" aria-hidden="true"><g transform="rotate(8 32 32)"><path d="M14 6 H40 L51 17 V58 H14 Z" fill="#fff" stroke="#8d9aa8" stroke-width="2.2" stroke-linejoin="round"/><path d="M40 6 V17 H51 Z" fill="#dfe6ee" stroke="#8d9aa8" stroke-width="2.2" stroke-linejoin="round"/><path d="M20 26 H44 M20 33 H44 M20 40 H44 M20 47 H36" stroke="#9fb3c8" stroke-width="2.4" stroke-linecap="round"/></g></svg>`,
+    lata: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 13 v41 q0 6 16 6 t16-6 v-41 z" fill="#cfd6db" stroke="#7f8b94" stroke-width="2" stroke-linejoin="round"/><ellipse cx="32" cy="13" rx="16" ry="5" fill="#e3e8ec" stroke="#7f8b94" stroke-width="2"/><ellipse cx="32" cy="13" rx="9" ry="2.6" fill="#aab3ba"/><rect x="29" y="10" width="7" height="3" rx="1.5" fill="#8b959c"/><path d="M16 26 h32 v15 q-16 5-32 0 z" fill="#ff7043"/><path d="M16 31 q16 5 32 0" fill="none" stroke="#fff" stroke-width="2.2" opacity=".85"/><path d="M21 17 v36" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".6"/></svg>`,
+    pote: `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="18" y="6" width="28" height="8" rx="3" fill="rgba(205,238,236,.95)" stroke="#6fb1ac" stroke-width="2"/><path d="M19 14 Q13 19 13 28 V51 Q13 59 21 59 H43 Q51 59 51 51 V28 Q51 19 45 14 Z" fill="rgba(190,236,231,.8)" stroke="#6fb1ac" stroke-width="2" stroke-linejoin="round"/><path d="M19 24 V48" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".85"/><path d="M17 54 H47" stroke="#6fb1ac" stroke-width="2" opacity=".5"/><path d="M44 27 q2 3 2 8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/></svg>`,
+    garrafa: `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="27" y="2" width="10" height="4" rx="1.5" fill="#2f7d52"/><path d="M28 6 h8 v14 c0 8 9 9 9 19 v16 q0 7-7 7 h-12 q-7 0-7-7 v-16 c0-10 9-11 9-19 z" fill="#58b783" stroke="#2f7d52" stroke-width="2" stroke-linejoin="round"/><rect x="19" y="38" width="26" height="12" fill="#f3efe0" stroke="#2f7d52" stroke-width="1.5"/><path d="M23 43 h18 M23 47 h12" stroke="#9aa08a" stroke-width="1.6" stroke-linecap="round"/><path d="M30 10 v8 M23 30 q-2 4-2 8" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".7"/></svg>`
+};
+// símbolo de reciclagem: três setas percorrendo um triângulo
+function simboloReciclagem() {
+    const R = 8.4, cx = 12, cy = 12.9;
+    const V = [-90, 30, 150].map(a => [cx + R * Math.cos(a * Math.PI / 180), cy + R * Math.sin(a * Math.PI / 180)]);
+    const f = n => n.toFixed(1);
+    let partes = '';
+    for (let k = 0; k < 3; k++) {
+        const A = V[k], B = V[(k + 1) % 3];
+        const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy);
+        const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+        const ini = [A[0] + dx * 0.2, A[1] + dy * 0.2], fim = [A[0] + dx * 0.7, A[1] + dy * 0.7];
+        const ponta = [fim[0] + ux * 3.8, fim[1] + uy * 3.8];
+        const b1 = [fim[0] + nx * 2.8, fim[1] + ny * 2.8], b2 = [fim[0] - nx * 2.8, fim[1] - ny * 2.8];
+        partes += `<path d="M${f(ini[0])} ${f(ini[1])} L${f(fim[0])} ${f(fim[1])}" stroke="#fff" stroke-width="2.8" stroke-linecap="round" fill="none"/><polygon points="${f(ponta[0])},${f(ponta[1])} ${f(b1[0])},${f(b1[1])} ${f(b2[0])},${f(b2[1])}" fill="#fff" stroke="#fff" stroke-width="0.8" stroke-linejoin="round"/>`;
+    }
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${partes}</svg>`;
+}
+const CORACAO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21 C5 15.5 2 12.2 2 8.6 C2 5.8 4.1 3.8 6.6 3.8 C8.9 3.8 10.7 5 12 7 C13.3 5 15.1 3.8 17.4 3.8 C19.9 3.8 22 5.8 22 8.6 C22 12.2 19 15.5 12 21 Z" fill="#e53935" stroke="#b71c1c" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.5 7.5 q1.5-1.3 3-.4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".7"/></svg>`;
+
+/* ============================================================
+   REGRAS DO JOGO
+   ============================================================ */
+const VIDAS_INICIAIS = 3;
+const TEMPO_INICIAL = 4.2;   // segundos para o primeiro item cair
+const TEMPO_MINIMO = 1.2;    // limite da velocidade
+const FATOR_ACELERA = 0.955; // cada item fica ~4,5% mais rápido
+const MULT_SOLTAR = 4;       // velocidade ao apertar "soltar"
+const ITENS_POR_NIVEL = 5;
+
+function duracaoQueda(n) { return Math.max(TEMPO_MINIMO, TEMPO_INICIAL * Math.pow(FATOR_ACELERA, n)); }
+function nivelDe(itens) { return 1 + Math.floor(itens / ITENS_POR_NIVEL); }
+
+/* ============================================================
+   INTERFACE
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const campo = $('campo'), faixasEl = $('faixas'), lixeirasEl = $('lixeiras');
+const REDUZIR = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CHAVE_MELHOR = 'ecoColetaSeletiva.melhor';
+
+const S = { rodando: false, pausado: false, vidas: VIDAS_INICIAIS, pontos: 0, itens: 0, nivel: 1,
+            item: null, areaQueda: 0, esperaSpawn: 0, esperaFim: 0, ultimoT: 0, ultimoItem: null, raf: 0, soltando: false };
+let faixas = [], bins = [], melhor = 0, dicaTimer = null, ultimoMov = 0;
+try { melhor = parseInt(localStorage.getItem(CHAVE_MELHOR), 10) || 0; } catch (e) { melhor = 0; }
+
+function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
+
+function montarCampo() {
+    for (let i = 0; i < 5; i++) {
+        const f = criar('div', 'faixa');
+        faixasEl.appendChild(f); faixas.push(f);
+        const l = LIXEIRAS[i];
+        const b = criar('div', 'lixeira');
+        b.style.setProperty('--cor', l.cor); b.style.setProperty('--cor-escura', l.escura);
+        b.innerHTML = `<div class="tampa"></div><div class="corpo-lix"><span class="reciclar">${simboloReciclagem()}</span><span class="lix-nome">${l.nome}</span></div>`;
+        lixeirasEl.appendChild(b); bins.push(b);
+    }
+}
+
+function renderVidas(perdeuUma) {
+    const v = $('vidas');
+    v.innerHTML = '';
+    for (let i = 0; i < VIDAS_INICIAIS; i++) {
+        const c = criar('span', 'vida' + (i >= S.vidas ? ' perdida' : ''));
+        c.innerHTML = CORACAO;
+        if (!(perdeuUma && i === S.vidas)) c.firstElementChild && (c.firstElementChild.style.animation = 'none');
+        v.appendChild(c);
+    }
+    v.setAttribute('aria-label', `${S.vidas} ${S.vidas === 1 ? 'vida' : 'vidas'}`);
+}
+
+function renderHud(pontuou) {
+    const p = $('pontos');
+    p.textContent = S.pontos;
+    if (pontuou) { p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop'); }
+    $('nivel').textContent = `Nível ${S.nivel}`;
+}
+
+function medir() { S.areaQueda = campo.clientHeight - lixeirasEl.offsetHeight; }
+
+function marcarFaixa(lane) {
+    faixas.forEach((f, i) => f.classList.toggle('ativa', i === lane));
+    bins.forEach((b, i) => b.classList.toggle('ativa', i === lane));
+}
+
+function mostrarDica(texto, ms = 2600) {
+    const d = $('dica');
+    clearTimeout(dicaTimer);
+    if (texto) {
+        d.textContent = texto;
+        d.classList.add('mostrar');
+        dicaTimer = setTimeout(() => d.classList.remove('mostrar'), ms);
+    } else {
+        d.classList.remove('mostrar');
+    }
+}
+
+/* ---------- item ---------- */
+function sortearItem() {
+    // primeiro sorteia a lixeira (todas aparecem com a mesma frequência), depois o item
+    let def;
+    do {
+        const tipo = LIXEIRAS[Math.floor(Math.random() * LIXEIRAS.length)].tipo;
+        const opcoes = ITENS.filter(i => i.tipo === tipo);
+        def = opcoes[Math.floor(Math.random() * opcoes.length)];
+    } while (S.ultimoItem && def.id === S.ultimoItem && Math.random() < 0.85);
+    S.ultimoItem = def.id;
+    return def;
+}
+
+function gerarItem() {
+    const def = sortearItem();
+    const lane = Math.floor(Math.random() * 5);
+    const el = criar('div', 'item');
+    el.style.setProperty('--lane', lane);
+    el.innerHTML = `<span class="item-nome">${def.nome}</span><div class="item-arte">${ARTE[def.id]}</div>`;
+    campo.appendChild(el);
+    medir();
+    S.item = { def, lane, el, p: 0, T: duracaoQueda(S.itens), caindo: true, alt: el.offsetHeight };
+    marcarFaixa(lane);
+    posicionar();
+}
+
+function posicionar() {
+    const it = S.item;
+    if (!it) return;
+    const y = -it.alt + it.p * S.areaQueda;
+    it.el.style.transform = `translateY(${y.toFixed(1)}px)`;
+}
+
+function mover(delta) {
+    const it = S.item;
+    if (!S.rodando || S.pausado || !it || !it.caindo) return;
+    const nova = Math.max(0, Math.min(4, it.lane + delta));
+    if (nova === it.lane) return;
+    it.lane = nova;
+    it.el.style.setProperty('--lane', nova);
+    marcarFaixa(nova);
+}
+
+// "soltar" vale só enquanto estiver pressionado: ao soltar o botão, a velocidade volta ao normal
+function setSoltando(v) {
+    S.soltando = !!v && S.rodando && !S.pausado;
+    $('btn-soltar').classList.toggle('apertado', S.soltando);
+}
+
+function floatMais(lane) {
+    const m = criar('div', 'mais', '+1');
+    m.style.left = ((lane + 0.5) * 20) + '%';
+    m.style.top = (S.areaQueda - 30) + 'px';
+    campo.appendChild(m);
+    setTimeout(() => m.remove(), 850);
+}
+
+function aterrissar() {
+    const it = S.item;
+    it.caindo = false; it.p = 1; posicionar();
+    S.itens++;
+    const bin = bins[it.lane];
+    const certo = LIXEIRAS[it.lane].tipo === it.def.tipo;
+
+    if (certo) {
+        S.pontos++;
+        it.el.classList.add('dentro');
+        bin.classList.add('abre'); setTimeout(() => bin.classList.remove('abre'), 500);
+        floatMais(it.lane);
+        mostrarDica('');
+    } else {
+        S.vidas--;
+        it.el.style.setProperty('--fuga', (it.lane < 2 ? 46 : -46) + 'px');
+        it.el.classList.add('errou');
+        bin.classList.add('erro'); setTimeout(() => bin.classList.remove('erro'), 450);
+        mostrarDica(it.def.dica, 3200);
+        renderVidas(true);
+    }
+    const novoNivel = nivelDe(S.itens);
+    if (novoNivel > S.nivel && S.vidas > 0) {
+        S.nivel = novoNivel;
+        const a = $('aviso-nivel');
+        a.textContent = `Nível ${S.nivel}: mais rápido!`;
+        a.classList.remove('mostrar'); void a.offsetWidth; a.classList.add('mostrar');
+    }
+    renderHud(certo);
+    const velho = it.el;
+    setTimeout(() => velho.remove(), 700);
+    S.item = null;
+    marcarFaixa(-1);
+    if (S.vidas <= 0) S.esperaFim = 0.9; else S.esperaSpawn = certo ? 0.35 : 0.75;
+}
+
+/* ---------- laço principal (usa o tempo do jogo, então a pausa congela tudo) ---------- */
+function laco(t) {
+    if (!S.rodando) return;
+    const dt = Math.min(0.05, (t - S.ultimoT) / 1000 || 0);
+    S.ultimoT = t;
+    if (!S.pausado) {
+        const it = S.item;
+        if (it && it.caindo) {
+            it.p += (dt / it.T) * (S.soltando ? MULT_SOLTAR : 1);
+            if (it.p >= 1) aterrissar(); else posicionar();
+        } else if (S.esperaFim > 0) {
+            S.esperaFim -= dt;
+            if (S.esperaFim <= 0) fimDeJogo();
+        } else if (S.esperaSpawn > 0) {
+            S.esperaSpawn -= dt;
+            if (S.esperaSpawn <= 0) gerarItem();
+        }
+    }
+    S.raf = requestAnimationFrame(laco);
+}
+
+/* ---------- coberturas: início e pausa ---------- */
+function abrirCobertura({ titulo, texto, regras, botoes }) {
+    const c = $('cobertura');
+    c.innerHTML = '';
+    c.hidden = false;
+    const caixa = criar('div', 'cobertura-caixa');
+    caixa.appendChild(criar('h2', '', titulo));
+    if (texto) caixa.appendChild(criar('p', '', texto));
+    if (regras) {
+        const ul = criar('ul', 'regras');
+        regras.forEach(([icone, t]) => { const li = criar('li'); li.innerHTML = icone; li.appendChild(document.createTextNode(t)); ul.appendChild(li); });
+        caixa.appendChild(ul);
+    }
+    botoes.forEach(([t, fn, sec]) => { const b = criar('button', 'btn-grande' + (sec ? ' sec' : ''), t); b.type = 'button'; b.onclick = fn; caixa.appendChild(b); });
+    c.appendChild(caixa);
+    const primeiro = c.querySelector('button'); if (primeiro) primeiro.focus();
+}
+function fecharCobertura() { const c = $('cobertura'); c.hidden = true; c.innerHTML = ''; }
+
+const ICONE_SETAS = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 L3 12 L9 18 M15 6 L21 12 L15 18" fill="none" stroke="#2e7d32" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICONE_BAIXO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9 L12 16 L19 9" fill="none" stroke="#c17900" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICONE_VIDAS = CORACAO;
+
+function telaInicial() {
+    abrirCobertura({
+        titulo: 'Separe o lixo!',
+        texto: 'Leve cada item que cai até a lixeira da cor certa.',
+        regras: [
+            [ICONE_SETAS, 'Use as setas para escolher a lixeira.'],
+            [ICONE_BAIXO, 'Segure a seta de baixo para cair mais rápido.'],
+            [ICONE_VIDAS, 'Você tem 3 vidas: cada erro tira uma.']
+        ],
+        botoes: [['Começar', iniciarJogo]]
+    });
+}
+
+function pausar() {
+    if (!S.rodando || S.pausado || S.esperaFim > 0 || document.getElementById('popup-jogo')) return;
+    S.pausado = true;
+    setSoltando(false);
+    abrirCobertura({ titulo: 'Jogo pausado', texto: 'O tempo está parado.', botoes: [['Continuar', continuar], ['Voltar ao Menu', () => { window.location.href = 'menu.html'; }, true]] });
+}
+function continuar() {
+    if (!S.pausado) return;
+    S.pausado = false;
+    fecharCobertura();
+}
+
+/* ---------- ciclo do jogo ---------- */
+function reiniciarEstado() {
+    cancelAnimationFrame(S.raf);
+    campo.querySelectorAll('.item, .mais').forEach(e => e.remove());
+    setSoltando(false);
+    Object.assign(S, { rodando: false, pausado: false, vidas: VIDAS_INICIAIS, pontos: 0, itens: 0, nivel: 1, item: null, esperaSpawn: 0, esperaFim: 0, ultimoItem: null });
+    marcarFaixa(-1);
+    mostrarDica('');
+    renderVidas(false);
+    renderHud(false);
+}
+
+function iniciarJogo() {
+    reiniciarEstado();
+    fecharCobertura();
+    medir();
+    S.rodando = true;
+    S.esperaSpawn = 0.6;
+    S.ultimoT = performance.now();
+    S.raf = requestAnimationFrame(laco);
+}
+
+function fimDeJogo() {
+    S.rodando = false;
+    cancelAnimationFrame(S.raf);
+    const recorde = S.pontos > melhor;
+    if (recorde) { melhor = S.pontos; try { localStorage.setItem(CHAVE_MELHOR, String(melhor)); } catch (e) { /* vale só nesta sessão */ } }
+
+    const overlay = criar('div'); overlay.id = 'popup-jogo';
+    const card = criar('div', 'pf-card'); card.tabIndex = -1;
+    card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+    card.appendChild(criar('div', 'pf-emoji', '♻️'));
+    card.appendChild(criar('h2', '', 'Fim de jogo'));
+    card.appendChild(criar('p', 'pf-msg', S.pontos === 0 ? 'Não desanime: errar faz parte de aprender!' : `Você separou ${S.pontos} ${S.pontos === 1 ? 'item' : 'itens'} corretamente.`));
+    if (recorde && S.pontos > 0) card.appendChild(criar('span', 'pf-recorde', 'Novo recorde!'));
+    const caixa = criar('div', 'pf-caixa');
+    caixa.appendChild(criar('strong', '', String(S.pontos)));
+    caixa.appendChild(criar('span', '', S.pontos === 1 ? 'ponto' : 'pontos'));
+    card.appendChild(caixa);
+    card.appendChild(criar('p', 'pf-msg', `Melhor pontuação: ${melhor}  ·  Nível alcançado: ${S.nivel}`));
+    const botoes = criar('div', 'pf-botoes');
+    const btn = (t, c, fn) => { const b = criar('button', 'pf-btn ' + c, t); b.type = 'button'; b.onclick = fn; return b; };
+    botoes.appendChild(btn('Jogar de novo', 'principal', () => { overlay.remove(); iniciarJogo(); }));
+    botoes.appendChild(btn('Voltar ao Menu', 'secundario', () => { window.location.href = 'menu.html'; }));
+    card.appendChild(botoes);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    card.focus();
+}
+
+/* ---------- entrada: botões e teclado ---------- */
+function segurar(botao, acao) {
+    let atraso = null, repete = null;
+    const parar = () => { clearTimeout(atraso); clearInterval(repete); botao.classList.remove('apertado'); };
+    botao.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        botao.classList.add('apertado');
+        acao();
+        atraso = setTimeout(() => { repete = setInterval(acao, 130); }, 260);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => botao.addEventListener(ev, parar));
+    botao.addEventListener('contextmenu', e => e.preventDefault());
+    botao.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!e.repeat) acao(); } });
+}
+segurar($('btn-esq'), () => mover(-1));
+segurar($('btn-dir'), () => mover(1));
+(function () { // "soltar": acelera enquanto o botão estiver pressionado
+    const b = $('btn-soltar');
+    b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (x) { /* ok */ } setSoltando(true); });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => b.addEventListener(ev, () => setSoltando(false)));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+    b.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); setSoltando(true); } });
+    b.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') setSoltando(false); });
+})();
+$('btn-pausa').onclick = () => (S.pausado ? continuar() : pausar());
+
+document.addEventListener('keydown', e => {
+    if (document.getElementById('popup-jogo')) return;
+    const k = e.key;
+    if (k === 'p' || k === 'P' || k === 'Escape') { if (S.rodando) { e.preventDefault(); S.pausado ? continuar() : pausar(); } return; }
+    if (e.target && e.target.tagName === 'BUTTON' && (k === 'Enter' || k === ' ')) return;
+    if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
+        e.preventDefault();
+        const agora = performance.now();
+        if (!e.repeat || agora - ultimoMov > 110) { mover(-1); ultimoMov = agora; }
+    } else if (k === 'ArrowRight' || k === 'd' || k === 'D') {
+        e.preventDefault();
+        const agora = performance.now();
+        if (!e.repeat || agora - ultimoMov > 110) { mover(1); ultimoMov = agora; }
+    } else if (k === 'ArrowDown' || k === 's' || k === 'S') {
+        e.preventDefault();
+        if (!e.repeat) setSoltando(true);
+    }
+});
+document.addEventListener('keyup', e => {
+    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') setSoltando(false);
+});
+window.addEventListener('blur', () => setSoltando(false));
+
+document.addEventListener('visibilitychange', () => { if (document.hidden) { setSoltando(false); pausar(); } });
+window.addEventListener('resize', medir);
+
+montarCampo();
+renderVidas(false);
+renderHud(false);
+medir();
+telaInicial();
+</script>
+</body>
+</html>

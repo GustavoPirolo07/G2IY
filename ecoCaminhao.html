@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco Caminhão</title>
+    <style>
+        :root { --verde: #2e7d32; --verde-escuro: #1b5e20; --fundo: #e8f5e9; --cartao: #f1f8e9; --borda: #81c784; --suave: #558b2f; }
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+        body { margin: 0; padding: 8px; min-height: 100vh; display: flex; justify-content: center; background: var(--fundo); color: var(--verde); font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; -webkit-touch-callout: none; }
+        .app { width: 100%; max-width: 560px; }
+        button { font-family: inherit; }
+        :focus-visible { outline: 3px solid var(--verde); outline-offset: 2px; }
+
+        .topo { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin: 2px 0 8px; }
+        .voltar { justify-self: start; text-decoration: none; color: var(--verde); font-weight: 700; font-size: 0.9rem; background: var(--cartao); border: 2px solid var(--borda); border-radius: 999px; padding: 6px 14px; }
+        .voltar:hover { background: #c8e6c9; }
+        h1 { margin: 0; font-size: 1.2rem; text-align: center; }
+
+        .jogo { background: #fff; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 10px; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "hud" "campo" "controles"; }
+        .hud { grid-area: hud; display: grid; grid-template-columns: 1fr auto 1fr auto; align-items: end; gap: 10px; }
+        .campo { grid-area: campo; min-width: 0; }
+        .controles { grid-area: controles; }
+        .instrucao { grid-area: instrucao; display: none; margin: 0; font-size: 0.82rem; color: var(--suave); line-height: 1.45; }
+
+        .hud-bloco span { display: block; font-size: 0.72rem; color: var(--suave); }
+        .hud-bloco b { font-size: 1.5rem; line-height: 1.1; display: inline-block; }
+        .hud-bloco.centro { text-align: center; }
+        .hud-bloco.centro b { font-size: 1.05rem; background: var(--cartao); border: 2px solid var(--borda); border-radius: 999px; padding: 2px 12px; }
+        .hud-bloco.direita { text-align: right; }
+        .pop { animation: pop 0.25s ease-out; }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.35); color: #1b5e20; } 100% { transform: scale(1); } }
+        .btn-pausa { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--borda); background: var(--cartao); color: var(--verde); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 0.95rem; padding: 0; }
+        .btn-pausa:hover { background: #c8e6c9; }
+        .btn-pausa svg { width: 15px; height: 15px; flex: none; }
+        .btn-pausa .txt { display: none; }
+
+        .tela { position: relative; width: var(--cw, 300px); height: var(--ch, 300px); margin: 0 auto; border-radius: 14px; overflow: hidden; box-shadow: inset 0 0 0 2px #cfe5bd; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .cobertura { position: absolute; inset: 0; z-index: 8; background: rgba(255,255,255,.92); display: flex; align-items: center; justify-content: center; padding: 14px; text-align: center; overflow-y: auto; }
+        .cobertura-caixa { width: 100%; max-width: 360px; }
+        .cobertura h2 { margin: 0 0 6px; font-size: 1.5rem; }
+        .cobertura p { margin: 0 0 10px; color: var(--suave); font-size: 0.92rem; line-height: 1.4; }
+        .regras { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; text-align: left; }
+        .regras li { display: flex; align-items: center; gap: 10px; background: var(--cartao); border: 2px solid var(--borda); border-radius: 10px; padding: 7px 10px; font-size: 0.86rem; color: var(--verde-escuro); font-weight: 600; line-height: 1.25; }
+        .regras svg, .regras canvas { width: 26px; height: 26px; flex: none; }
+        .btn-grande { width: 100%; padding: 13px; font-size: 1.1rem; font-weight: 700; border-radius: 10px; border: 2px solid var(--verde); background: var(--verde); color: #fff; cursor: pointer; transition: 0.2s; }
+        .btn-grande:hover { background: var(--verde-escuro); border-color: var(--verde-escuro); }
+        .btn-grande.sec { background: #fff; color: var(--verde); border-color: var(--borda); margin-top: 8px; }
+        .btn-grande.sec:hover { background: var(--cartao); }
+
+        /* controles direcionais */
+        .dpad { display: grid; grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); gap: 6px; justify-content: center; }
+        .dpad button { border-radius: 14px; border: 2px solid var(--verde); background: var(--verde); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 0 var(--verde-escuro); touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: transform .08s; }
+        .dpad button:active, .dpad button.apertado { transform: translateY(3px); box-shadow: 0 1px 0 var(--verde-escuro); }
+        .dpad svg { width: 28px; height: 28px; }
+        .dpad .cima { grid-column: 2; grid-row: 1; } .dpad .esq { grid-column: 1; grid-row: 2; } .dpad .dir { grid-column: 3; grid-row: 2; } .dpad .baixo { grid-column: 2; grid-row: 3; }
+
+        #popup-jogo { position: fixed; inset: 0; background: rgba(27,94,32,.45); display: flex; align-items: center; justify-content: center; padding: 15px; z-index: 9999; animation: pfFade .25s ease; overflow-y: auto; }
+        #popup-jogo .pf-card { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: 400px; width: 100%; padding: 26px 22px; text-align: center; animation: pfSobe .3s ease; outline: none; }
+        #popup-jogo .pf-emoji { font-size: 3rem; line-height: 1; }
+        #popup-jogo h2 { font-size: 1.6rem; margin: 10px 0 4px; color: var(--verde); }
+        #popup-jogo .pf-msg { color: var(--suave); font-size: .95rem; line-height: 1.4; margin: 0 0 4px; }
+        #popup-jogo .pf-recorde { display: inline-block; margin: 6px 0 0; padding: 3px 12px; border-radius: 999px; background: #fff3c4; border: 2px solid #f2c230; color: #7a5a00; font-weight: 700; font-size: .85rem; }
+        #popup-jogo .pf-caixa { background: var(--cartao); border: 2px solid var(--borda); border-radius: 12px; padding: 12px; margin: 14px 0 6px; }
+        #popup-jogo .pf-caixa strong { display: block; font-size: 2.2rem; color: var(--verde-escuro); }
+        #popup-jogo .pf-caixa span { font-size: .85rem; color: var(--suave); }
+        #popup-jogo .pf-botoes { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+        #popup-jogo .pf-btn { padding: 13px; font-size: 1.05rem; font-weight: bold; border-radius: 10px; cursor: pointer; transition: .2s; }
+        #popup-jogo .pf-btn.principal { background: var(--verde); color: #fff; border: 2px solid var(--verde); }
+        #popup-jogo .pf-btn.principal:hover { background: var(--verde-escuro); border-color: var(--verde-escuro); }
+        #popup-jogo .pf-btn.secundario { background: #fff; color: var(--verde); border: 2px solid var(--borda); }
+        #popup-jogo .pf-btn.secundario:hover { background: var(--cartao); }
+        @keyframes pfFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pfSobe { from { opacity: 0; transform: translateY(15px) scale(.97); } to { opacity: 1; transform: none; } }
+
+        @media (min-width: 760px) {
+            body { padding: 12px; }
+            .app { max-width: 900px; }
+            .topo { margin: 4px 0 12px; }
+            h1 { font-size: 1.5rem; }
+            .jogo { padding: 16px; gap: 14px 22px; justify-content: center; grid-template-columns: minmax(0, 620px) 230px; align-items: start;
+                grid-template-areas: "campo hud" "campo controles" "campo instrucao"; grid-template-rows: auto auto 1fr; }
+            .hud { grid-template-columns: 1fr 1fr; gap: 14px; }
+            .hud-bloco, .hud-bloco.centro, .hud-bloco.direita { text-align: left; }
+            .hud-bloco span { font-size: 0.85rem; margin-bottom: 2px; }
+            .hud-bloco b { font-size: 2.2rem; }
+            .hud-bloco.centro b { font-size: 1.1rem; padding: 3px 14px; }
+            .btn-pausa { grid-column: 1 / -1; width: 100%; height: 44px; border-radius: 12px; }
+            .btn-pausa .txt { display: inline; }
+            .instrucao { display: block; }
+            .dpad { grid-template-columns: repeat(3, 62px); grid-template-rows: repeat(3, 62px); }
+        }
+        @media (prefers-reduced-motion: reduce) { .pop { animation: none; } }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header class="topo">
+        <a class="voltar" href="menu.html">‹ Menu</a>
+        <h1>Eco Caminhão</h1>
+        <span></span>
+    </header>
+    <section class="jogo">
+        <div class="hud" id="hud">
+            <div class="hud-bloco"><span>Lixo coletado</span><b id="pontos">0</b></div>
+            <div class="hud-bloco centro"><span>Velocidade</span><b id="nivel">Nível 1</b></div>
+            <div class="hud-bloco direita"><span>Recorde</span><b id="recorde">0</b></div>
+            <button type="button" class="btn-pausa" id="btn-pausa" aria-label="Pausar o jogo">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.6" height="12" rx="1" fill="currentColor"/><rect x="9.4" y="2" width="3.6" height="12" rx="1" fill="currentColor"/></svg>
+                <span class="txt">Pausar</span>
+            </button>
+        </div>
+        <div class="campo" id="campo">
+            <div class="tela" id="tela">
+                <canvas id="cv" aria-label="Campo do jogo"></canvas>
+                <div class="cobertura" id="cobertura"></div>
+            </div>
+        </div>
+        <div class="controles" id="controles">
+            <div class="dpad">
+                <button type="button" class="cima" data-dir="U" aria-label="Para cima"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15 L12 7 L20 15" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="esq" data-dir="L" aria-label="Para a esquerda"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4 L7 12 L15 20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="dir" data-dir="R" aria-label="Para a direita"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 L17 12 L9 20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="baixo" data-dir="D" aria-label="Para baixo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9 L12 17 L20 9" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+        </div>
+        <p class="instrucao">Teclado: setas ou WASD dirigem o caminhão. P pausa o jogo. Cada lixo coletado acrescenta uma caçamba com a cor da lixeira certa.</p>
+    </section>
+</div>
+
+<script>
+/* ============================================================
+   DADOS
+   ============================================================ */
+const COLS = 15, ROWS = 15;
+const DIRS = { U: { dx: 0, dy: -1 }, D: { dx: 0, dy: 1 }, L: { dx: -1, dy: 0 }, R: { dx: 1, dy: 0 } };
+const COR_TIPO = { papel: '#1e88e5', plastico: '#e53935', vidro: '#43a047', metal: '#f9a825', organico: '#8d6e63' };
+const LIXOS = [
+    { id: 'banana',  tipo: 'organico' }, { id: 'pet',     tipo: 'plastico' }, { id: 'papel', tipo: 'papel' },
+    { id: 'lata',    tipo: 'metal' },    { id: 'pote',    tipo: 'vidro' },    { id: 'garrafa', tipo: 'vidro' }
+];
+const ARTE = {
+    banana: `<svg viewBox="0 0 64 64"><path d="M29.5 5 q2.5-4 6-1.5 l-1.5 9 h-5 z" fill="#8a6a2a"/><path d="M26 11 q6-3.5 12 0 l1.5 24 q-7.5 5.5-15 0 z" fill="#fff2b0" stroke="#dcc25f" stroke-width="1.5"/><path d="M26 32 C13 35 6 46 9 59 C18 55 25 48 29 39 Z" fill="#f2c230" stroke="#b98e12" stroke-width="1.8" stroke-linejoin="round"/><path d="M38 32 C51 35 58 46 55 59 C46 55 39 48 35 39 Z" fill="#f2c230" stroke="#b98e12" stroke-width="1.8" stroke-linejoin="round"/><path d="M27.5 36 C25.5 46 27.5 54 32 61 C36.5 54 38.5 46 36.5 36 Z" fill="#f7d44f" stroke="#b98e12" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="48" r="1.6" fill="#8a5a12"/><circle cx="48" cy="48" r="1.6" fill="#8a5a12"/><circle cx="32" cy="50" r="1.4" fill="#8a5a12"/><circle cx="21" cy="42" r="1.2" fill="#8a5a12"/></svg>`,
+    pet: `<svg viewBox="0 0 64 64"><rect x="25" y="3" width="14" height="8" rx="2.5" fill="#e53935" stroke="#a52421" stroke-width="1.5"/><path d="M27 11 h10 v6 c6 4 10 8 10 15 v21 q0 7-7 7 h-16 q-7 0-7-7 v-21 c0-7 4-11 10-15 z" fill="rgba(170,218,245,.9)" stroke="#4f9ac9" stroke-width="2" stroke-linejoin="round"/><rect x="17" y="30" width="30" height="13" fill="#fff" stroke="#4f9ac9" stroke-width="1.5"/><rect x="17" y="34" width="30" height="5" fill="#fb8c00"/><path d="M19 52 h26 M19 56 h26" stroke="#4f9ac9" stroke-width="1.5" opacity=".7"/><path d="M22 22 q-3 5-3 11" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".85"/></svg>`,
+    papel: `<svg viewBox="0 0 64 64"><g transform="rotate(8 32 32)"><path d="M14 6 H40 L51 17 V58 H14 Z" fill="#fff" stroke="#8d9aa8" stroke-width="2.2" stroke-linejoin="round"/><path d="M40 6 V17 H51 Z" fill="#dfe6ee" stroke="#8d9aa8" stroke-width="2.2" stroke-linejoin="round"/><path d="M20 26 H44 M20 33 H44 M20 40 H44 M20 47 H36" stroke="#9fb3c8" stroke-width="2.4" stroke-linecap="round"/></g></svg>`,
+    lata: `<svg viewBox="0 0 64 64"><path d="M16 13 v41 q0 6 16 6 t16-6 v-41 z" fill="#cfd6db" stroke="#7f8b94" stroke-width="2" stroke-linejoin="round"/><ellipse cx="32" cy="13" rx="16" ry="5" fill="#e3e8ec" stroke="#7f8b94" stroke-width="2"/><ellipse cx="32" cy="13" rx="9" ry="2.6" fill="#aab3ba"/><rect x="29" y="10" width="7" height="3" rx="1.5" fill="#8b959c"/><path d="M16 26 h32 v15 q-16 5-32 0 z" fill="#ff7043"/><path d="M16 31 q16 5 32 0" fill="none" stroke="#fff" stroke-width="2.2" opacity=".85"/><path d="M21 17 v36" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".6"/></svg>`,
+    pote: `<svg viewBox="0 0 64 64"><rect x="18" y="6" width="28" height="8" rx="3" fill="rgba(205,238,236,.95)" stroke="#6fb1ac" stroke-width="2"/><path d="M19 14 Q13 19 13 28 V51 Q13 59 21 59 H43 Q51 59 51 51 V28 Q51 19 45 14 Z" fill="rgba(190,236,231,.8)" stroke="#6fb1ac" stroke-width="2" stroke-linejoin="round"/><path d="M19 24 V48" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".85"/><path d="M17 54 H47" stroke="#6fb1ac" stroke-width="2" opacity=".5"/><path d="M44 27 q2 3 2 8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/></svg>`,
+    garrafa: `<svg viewBox="0 0 64 64"><rect x="27" y="2" width="10" height="4" rx="1.5" fill="#2f7d52"/><path d="M28 6 h8 v14 c0 8 9 9 9 19 v16 q0 7-7 7 h-12 q-7 0-7-7 v-16 c0-10 9-11 9-19 z" fill="#58b783" stroke="#2f7d52" stroke-width="2" stroke-linejoin="round"/><rect x="19" y="38" width="26" height="12" fill="#f3efe0" stroke="#2f7d52" stroke-width="1.5"/><path d="M23 43 h18 M23 47 h12" stroke="#9aa08a" stroke-width="1.6" stroke-linecap="round"/><path d="M30 10 v8 M23 30 q-2 4-2 8" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".7"/></svg>`
+};
+function simboloReciclagem(cor) {
+    const R = 8.4, cx = 12, cy = 12.9, f = n => n.toFixed(1);
+    const V = [-90, 30, 150].map(a => [cx + R * Math.cos(a * Math.PI / 180), cy + R * Math.sin(a * Math.PI / 180)]);
+    let p = '';
+    for (let k = 0; k < 3; k++) {
+        const A = V[k], B = V[(k + 1) % 3], dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy);
+        const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+        const ini = [A[0] + dx * 0.2, A[1] + dy * 0.2], fim = [A[0] + dx * 0.7, A[1] + dy * 0.7];
+        const ponta = [fim[0] + ux * 3.8, fim[1] + uy * 3.8], b1 = [fim[0] + nx * 2.8, fim[1] + ny * 2.8], b2 = [fim[0] - nx * 2.8, fim[1] - ny * 2.8];
+        p += `<path d="M${f(ini[0])} ${f(ini[1])} L${f(fim[0])} ${f(fim[1])}" stroke="${cor}" stroke-width="2.8" stroke-linecap="round" fill="none"/><polygon points="${f(ponta[0])},${f(ponta[1])} ${f(b1[0])},${f(b1[1])} ${f(b2[0])},${f(b2[1])}" fill="${cor}" stroke="${cor}" stroke-width="0.8" stroke-linejoin="round"/>`;
+    }
+    return `<svg viewBox="0 0 24 24">${p}</svg>`;
+}
+function imagemDeSvg(svg, tam) {
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" width="${tam}" height="${tam}" `));
+    return img;
+}
+const IMG = {};
+Object.keys(ARTE).forEach(k => { IMG[k] = imagemDeSvg(ARTE[k], 64); });
+IMG.reciclar = imagemDeSvg(simboloReciclagem('#ffffff'), 48);
+
+/* ============================================================
+   REGRAS
+   ============================================================ */
+const TAM_INICIAL = 3;                       // caminhão + 2 caçambas
+const ITENS_POR_NIVEL = 4;
+const nivelDe = p => 1 + Math.floor(p / ITENS_POR_NIVEL);
+const intervaloDe = nivel => Math.max(70, 170 - (nivel - 1) * 10); // ms entre movimentos
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const REDUZIR = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CHAVE_MELHOR = 'ecoCaminhao.melhor';
+const S = { rodando: false, pausado: false, morrendo: 0, motivo: '', dir: DIRS.R, fila: [], corpo: [], lixo: null, pontos: 0, nivel: 1, acum: 0, ultimoT: 0, raf: 0, efeitos: [], tempo: 0, angCab: 0 };
+let cs = 30, DPR = 1, fundo = null, melhor = 0;
+try { melhor = parseInt(localStorage.getItem(CHAVE_MELHOR), 10) || 0; } catch (e) { melhor = 0; }
+
+function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
+
+/* ---------- tamanho do campo ---------- */
+function redimensionar() {
+    const largo = window.matchMedia('(min-width: 760px)').matches;
+    const larg = $('campo').clientWidth || 300;
+    const usado = largo ? $('campo').getBoundingClientRect().top + window.scrollY + 26
+                        : document.querySelector('.topo').offsetHeight + $('hud').offsetHeight + $('controles').offsetHeight + 56;
+    const alt = Math.max(220, window.innerHeight - usado);
+    cs = Math.max(12, Math.floor(Math.min(larg / COLS, alt / ROWS, 46)));
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    const tela = $('tela');
+    tela.style.setProperty('--cw', cs * COLS + 'px');
+    tela.style.setProperty('--ch', cs * ROWS + 'px');
+    cv.width = Math.round(cs * COLS * DPR); cv.height = Math.round(cs * ROWS * DPR);
+    construirFundo();
+    desenhar(S.acum / intervaloDe(S.nivel));
+}
+
+function construirFundo() {
+    fundo = document.createElement('canvas');
+    fundo.width = cv.width; fundo.height = cv.height;
+    const g = fundo.getContext('2d');
+    g.scale(DPR, DPR);
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        g.fillStyle = (r + c) % 2 ? '#d6edc0' : '#cde8b4';
+        g.fillRect(c * cs, r * cs, cs + 0.5, cs + 0.5);
+    }
+    // florzinhas e tufos fixos para dar vida ao gramado
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let i = 0; i < 26; i++) {
+        const c = Math.floor(rnd() * COLS), r = Math.floor(rnd() * ROWS);
+        const x = (c + 0.2 + rnd() * 0.6) * cs, y = (r + 0.2 + rnd() * 0.6) * cs;
+        g.fillStyle = i % 3 === 0 ? '#fff59d' : '#b5dc98';
+        g.beginPath(); g.arc(x, y, cs * (i % 3 === 0 ? 0.045 : 0.07), 0, Math.PI * 2); g.fill();
+    }
+}
+
+/* ---------- desenho dos veículos (espaço da célula: 1 x 1, centrado) ---------- */
+function rr(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+    g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h); g.lineTo(x + r, y + h);
+    g.quadraticCurveTo(x, y + h, x, y + h - r); g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath();
+}
+function rodas(g, xs, y) { g.fillStyle = '#37474f'; xs.forEach(x => [-y, y].forEach(yy => { g.beginPath(); g.arc(x, yy, 0.095, 0, Math.PI * 2); g.fill(); })); }
+
+function desenharCacamba(g, cor) {
+    rodas(g, [-0.27, 0.27], 0.36);
+    g.fillStyle = '#455a64'; g.fillRect(0.4, -0.05, 0.2, 0.1);          // engate
+    rr(g, -0.5, -0.33, 1, 0.66, 0.1); g.fillStyle = cor; g.fill();
+    g.lineWidth = 0.035; g.strokeStyle = 'rgba(0,0,0,.28)'; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.22)'; rr(g, -0.43, -0.27, 0.86, 0.14, 0.06); g.fill();
+    if (IMG.reciclar.complete) { g.globalAlpha = 0.9; g.drawImage(IMG.reciclar, -0.2, -0.17, 0.4, 0.4); g.globalAlpha = 1; }
+}
+function desenharCaminhao(g) {
+    rodas(g, [-0.3, 0.28], 0.37);
+    rr(g, -0.5, -0.34, 0.62, 0.68, 0.1); g.fillStyle = '#2e7d32'; g.fill(); g.lineWidth = 0.035; g.strokeStyle = 'rgba(0,0,0,.3)'; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.2)'; rr(g, -0.44, -0.28, 0.5, 0.12, 0.05); g.fill();
+    if (IMG.reciclar.complete) { g.globalAlpha = 0.9; g.drawImage(IMG.reciclar, -0.4, -0.17, 0.4, 0.4); g.globalAlpha = 1; }
+    rr(g, 0.1, -0.31, 0.4, 0.62, 0.12); g.fillStyle = '#ffffff'; g.fill(); g.lineWidth = 0.035; g.strokeStyle = 'rgba(0,0,0,.3)'; g.stroke();
+    rr(g, 0.28, -0.21, 0.17, 0.42, 0.06); g.fillStyle = '#90caf9'; g.fill();
+    g.fillStyle = '#fdd835'; [-0.22, 0.22].forEach(y => { g.beginPath(); g.arc(0.5, y, 0.05, 0, Math.PI * 2); g.fill(); });
+    g.fillStyle = '#e53935'; g.fillRect(0.16, -0.05, 0.08, 0.1);       // giroflex
+}
+function noCentro(g, x, y, fn) { g.save(); g.translate((x + 0.5) * cs, (y + 0.5) * cs); g.scale(cs, cs); fn(); g.restore(); }
+
+/* ---------- quadro ---------- */
+function desenhar(alpha) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (fundo) ctx.drawImage(fundo, 0, 0);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    // lixo
+    if (S.lixo && IMG[S.lixo.id].complete) {
+        const pulso = 1 + Math.sin(S.tempo * 5) * 0.06;
+        noCentro(ctx, S.lixo.x, S.lixo.y, () => {
+            ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(0, 0.36, 0.3, 0.09, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.scale(pulso, pulso); ctx.drawImage(IMG[S.lixo.id], -0.42, -0.46, 0.84, 0.84);
+        });
+    }
+    // caminhão: da cauda para a cabeça
+    const posi = S.corpo.map(s => ({ x: s.px + (s.x - s.px) * alpha, y: s.py + (s.y - s.py) * alpha }));
+    const tremer = S.morrendo > 0 ? (Math.random() - 0.5) * 0.08 : 0;
+    for (let i = S.corpo.length - 1; i >= 0; i--) {
+        const p = posi[i];
+        if (i === 0) {
+            const alvo = Math.atan2(S.dir.dy, S.dir.dx);
+            let d = alvo - S.angCab; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+            S.angCab += d * 0.45;
+            noCentro(ctx, p.x + tremer, p.y + tremer, () => { ctx.rotate(S.angCab); desenharCaminhao(ctx); });
+        } else {
+            const f = posi[i - 1];
+            let ang = Math.atan2(f.y - p.y, f.x - p.x);
+            if (Math.hypot(f.x - p.x, f.y - p.y) < 0.01) ang = S.corpo[i].ang || 0;
+            S.corpo[i].ang = ang;
+            noCentro(ctx, p.x, p.y, () => { ctx.rotate(ang); desenharCacamba(ctx, S.corpo[i].cor); });
+        }
+    }
+    if (S.morrendo > 0) { ctx.fillStyle = `rgba(229,57,53,${0.18 + 0.12 * Math.sin(S.tempo * 30)})`; ctx.fillRect(0, 0, cs * COLS, cs * ROWS); }
+    // efeitos (+1)
+    S.efeitos.forEach(e => {
+        const k = e.t / 0.8;
+        ctx.globalAlpha = Math.max(0, 1 - k);
+        ctx.fillStyle = '#1b5e20'; ctx.strokeStyle = '#fff'; ctx.lineWidth = cs * 0.1; ctx.font = `800 ${cs * 0.6}px 'Segoe UI', sans-serif`; ctx.textAlign = 'center';
+        const x = (e.x + 0.5) * cs, y = (e.y + 0.2 - k * 0.9) * cs;
+        ctx.strokeText('+1', x, y); ctx.fillText('+1', x, y);
+        ctx.globalAlpha = 1;
+    });
+}
+
+/* ---------- lógica ---------- */
+function novoLixo() {
+    const ocupado = new Set(S.corpo.map(s => s.x + ',' + s.y));
+    const livres = [];
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!ocupado.has(c + ',' + r)) livres.push([c, r]);
+    if (!livres.length) return null;
+    const [x, y] = livres[Math.floor(Math.random() * livres.length)];
+    const def = LIXOS[Math.floor(Math.random() * LIXOS.length)];
+    return { x, y, id: def.id, tipo: def.tipo };
+}
+
+function reiniciar() {
+    cancelAnimationFrame(S.raf);
+    const cx = Math.floor(COLS / 2), cy = Math.floor(ROWS / 2);
+    S.corpo = [];
+    for (let i = 0; i < TAM_INICIAL; i++) S.corpo.push({ x: cx - i, y: cy, px: cx - i, py: cy, cor: i === 0 ? '#2e7d32' : '#90a4ae' });
+    Object.assign(S, { rodando: false, pausado: false, morrendo: 0, dir: DIRS.R, fila: [], pontos: 0, nivel: 1, acum: 0, efeitos: [], angCab: 0 });
+    S.lixo = novoLixo();
+    atualizarHud(false);
+}
+
+function atualizarHud(pontuou) {
+    const p = $('pontos'); p.textContent = S.pontos;
+    if (pontuou && !REDUZIR) { p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop'); }
+    $('nivel').textContent = `Nível ${S.nivel}`;
+    $('recorde').textContent = Math.max(melhor, S.pontos);
+}
+
+function fim(motivo) {
+    S.rodando = false; S.motivo = motivo; S.morrendo = 0.85;
+}
+
+function tick() {
+    if (S.fila.length) S.dir = S.fila.shift();
+    const cab = S.corpo[0];
+    const nx = cab.x + S.dir.dx, ny = cab.y + S.dir.dy;
+    if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) return fim('parede');
+    const comeu = S.lixo && nx === S.lixo.x && ny === S.lixo.y;
+    const limite = comeu ? S.corpo.length : S.corpo.length - 1;   // sem crescer, a ponta sai do lugar
+    for (let i = 0; i < limite; i++) if (S.corpo[i].x === nx && S.corpo[i].y === ny) return fim('corpo');
+
+    const cauda = { x: S.corpo[S.corpo.length - 1].x, y: S.corpo[S.corpo.length - 1].y };
+    for (let i = S.corpo.length - 1; i >= 1; i--) {
+        const s = S.corpo[i], f = S.corpo[i - 1];
+        s.px = s.x; s.py = s.y; s.x = f.x; s.y = f.y;
+    }
+    cab.px = cab.x; cab.py = cab.y; cab.x = nx; cab.y = ny;
+
+    if (comeu) {
+        S.corpo.push({ x: cauda.x, y: cauda.y, px: cauda.x, py: cauda.y, cor: COR_TIPO[S.lixo.tipo] });
+        S.pontos++;
+        S.efeitos.push({ x: nx, y: ny, t: 0 });
+        const novo = nivelDe(S.pontos);
+        S.nivel = novo;
+        S.lixo = novoLixo();
+        atualizarHud(true);
+        if (!S.lixo) { S.rodando = false; S.motivo = 'vitoria'; S.morrendo = 0.01; }
+    }
+}
+
+function laco(t) {
+    const dt = Math.min(0.05, (t - S.ultimoT) / 1000 || 0);
+    S.ultimoT = t; S.tempo += dt;
+    if (!S.pausado) {
+        S.efeitos.forEach(e => { e.t += dt; });
+        S.efeitos = S.efeitos.filter(e => e.t < 0.8);
+        if (S.rodando) {
+            S.acum += dt * 1000;
+            const iv = intervaloDe(S.nivel);
+            while (S.acum >= iv && S.rodando) { S.acum -= iv; tick(); }
+        } else if (S.morrendo > 0) {
+            S.morrendo -= dt;
+            if (S.morrendo <= 0) { S.morrendo = 0; abrirFim(); S.raf = 0; desenhar(1); return; }
+        }
+    }
+    desenhar(S.rodando ? Math.min(1, S.acum / intervaloDe(S.nivel)) : 1);
+    S.raf = requestAnimationFrame(laco);
+}
+
+/* ---------- telas ---------- */
+function abrirCobertura({ titulo, texto, regras, botoes }) {
+    const c = $('cobertura'); c.innerHTML = ''; c.hidden = false;
+    const caixa = criar('div', 'cobertura-caixa');
+    caixa.appendChild(criar('h2', '', titulo));
+    if (texto) caixa.appendChild(criar('p', '', texto));
+    if (regras) {
+        const ul = criar('ul', 'regras');
+        regras.forEach(([icone, t]) => { const li = criar('li'); li.appendChild(icone); li.appendChild(document.createTextNode(t)); ul.appendChild(li); });
+        caixa.appendChild(ul);
+    }
+    botoes.forEach(([t, fn, sec]) => { const b = criar('button', 'btn-grande' + (sec ? ' sec' : ''), t); b.type = 'button'; b.onclick = fn; caixa.appendChild(b); });
+    c.appendChild(caixa);
+    const b1 = c.querySelector('button'); if (b1) b1.focus();
+}
+function fecharCobertura() { const c = $('cobertura'); c.hidden = true; c.innerHTML = ''; }
+function iconeSvg(svg) { const s = criar('span'); s.innerHTML = svg; s.firstElementChild.setAttribute('width', 26); s.firstElementChild.setAttribute('height', 26); s.style.display = 'inline-flex'; return s; }
+
+function telaInicial() {
+    const seta = `<svg viewBox="0 0 24 24"><path d="M9 6 L3 12 L9 18 M15 6 L21 12 L15 18" fill="none" stroke="#2e7d32" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const cacamba = `<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3" fill="#e53935"/><rect x="6" y="9" width="12" height="3" rx="1.5" fill="rgba(255,255,255,.5)"/></svg>`;
+    const parede = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="#ffcdd2" stroke="#e53935" stroke-width="2"/><path d="M8 8 L16 16 M16 8 L8 16" stroke="#e53935" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+    abrirCobertura({
+        titulo: 'Limpe a cidade!',
+        texto: 'Dirija o caminhão de lixo até o lixo espalhado pelo gramado.',
+        regras: [
+            [iconeSvg(seta), 'Use as setas para virar o caminhão.'],
+            [iconeSvg(cacamba), 'Cada lixo coletado acrescenta uma caçamba, na cor da lixeira certa.'],
+            [iconeSvg(parede), 'Não bata nas bordas nem nas próprias caçambas.']
+        ],
+        botoes: [['Começar', iniciar]]
+    });
+}
+
+function pausar() {
+    if (!S.rodando || S.pausado) return;
+    S.pausado = true;
+    abrirCobertura({ titulo: 'Jogo pausado', texto: 'O caminhão está parado.', botoes: [['Continuar', continuar], ['Voltar ao Menu', () => { window.location.href = 'menu.html'; }, true]] });
+}
+function continuar() { if (!S.pausado) return; S.pausado = false; S.ultimoT = performance.now(); fecharCobertura(); }
+
+function iniciar() {
+    reiniciar(); fecharCobertura();
+    const antigo = document.getElementById('popup-jogo'); if (antigo) antigo.remove();
+    S.rodando = true; S.ultimoT = performance.now();
+    S.raf = requestAnimationFrame(laco);
+}
+
+function abrirFim() {
+    const recorde = S.pontos > melhor;
+    if (recorde) { melhor = S.pontos; try { localStorage.setItem(CHAVE_MELHOR, String(melhor)); } catch (e) { /* só nesta sessão */ } }
+    atualizarHud(false);
+    const venceu = S.motivo === 'vitoria';
+    const overlay = criar('div'); overlay.id = 'popup-jogo';
+    const card = criar('div', 'pf-card'); card.tabIndex = -1; card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+    card.appendChild(criar('div', 'pf-emoji', venceu ? '🏆' : '🚛'));
+    card.appendChild(criar('h2', '', venceu ? 'Cidade limpa!' : 'Fim de jogo'));
+    card.appendChild(criar('p', 'pf-msg', venceu ? 'Você coletou todo o lixo do gramado!' : S.motivo === 'parede' ? 'O caminhão bateu na borda do campo.' : 'O caminhão bateu nas próprias caçambas.'));
+    if (recorde && S.pontos > 0) card.appendChild(criar('span', 'pf-recorde', 'Novo recorde!'));
+    const caixa = criar('div', 'pf-caixa');
+    caixa.appendChild(criar('strong', '', String(S.pontos)));
+    caixa.appendChild(criar('span', '', S.pontos === 1 ? 'lixo coletado' : 'lixos coletados'));
+    card.appendChild(caixa);
+    card.appendChild(criar('p', 'pf-msg', `Recorde: ${melhor}  ·  Nível alcançado: ${S.nivel}`));
+    const botoes = criar('div', 'pf-botoes');
+    const btn = (t, c, fn) => { const b = criar('button', 'pf-btn ' + c, t); b.type = 'button'; b.onclick = fn; return b; };
+    botoes.appendChild(btn('Jogar de novo', 'principal', iniciar));
+    botoes.appendChild(btn('Voltar ao Menu', 'secundario', () => { window.location.href = 'menu.html'; }));
+    card.appendChild(botoes); overlay.appendChild(card); document.body.appendChild(overlay); card.focus();
+}
+
+/* ---------- entrada ---------- */
+function pedirDirecao(nome) {
+    if (!S.rodando || S.pausado) return;
+    const nova = DIRS[nome];
+    const ult = S.fila.length ? S.fila[S.fila.length - 1] : S.dir;
+    if (nova === ult || (nova.dx === -ult.dx && nova.dy === -ult.dy)) return;
+    if (S.fila.length < 2) S.fila.push(nova);
+}
+document.querySelectorAll('.dpad button').forEach(b => {
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('apertado'); pedirDirecao(b.dataset.dir); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => b.classList.remove('apertado')));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+});
+const TECLAS = { ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R', w: 'U', s: 'D', a: 'L', d: 'R', W: 'U', S: 'D', A: 'L', D: 'R' };
+document.addEventListener('keydown', e => {
+    if (document.getElementById('popup-jogo')) return;
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { if (S.rodando) { e.preventDefault(); S.pausado ? continuar() : pausar(); } return; }
+    const d = TECLAS[e.key];
+    if (d) { e.preventDefault(); pedirDirecao(d); }
+});
+$('btn-pausa').onclick = () => (S.pausado ? continuar() : pausar());
+document.addEventListener('visibilitychange', () => { if (document.hidden) pausar(); });
+window.addEventListener('resize', redimensionar);
+
+/* ---------- início ---------- */
+reiniciar();
+redimensionar();
+$('recorde').textContent = melhor;
+telaInicial();
+S.ultimoT = performance.now();
+S.raf = requestAnimationFrame(laco);
+</script>
+</body>
+</html>
