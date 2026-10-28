@@ -45,10 +45,12 @@ function estrelasReflorestar(jogadas, otimo) {
 
 // Envia a conclusão de uma fase. Devolve quantos pontos ecológicos foram ganhos
 // (só ganha pontos quando melhora o número de árvores daquela fase).
-async function registrarReflorestar(nivel, jogadas) {
+// O tempo (em segundos) só conta em fases perfeitas e serve de desempate no ranking.
+async function registrarReflorestar(nivel, jogadas, tempoSegundos = null) {
     const { data, error } = await supabaseClient.rpc('registrar_reflorestar', {
         p_nivel: nivel,
-        p_jogadas: jogadas
+        p_jogadas: jogadas,
+        p_tempo: tempoSegundos
     });
     if (error) { console.error('Erro ao registrar fase:', error); return 0; }
     return Number(data) || 0;
@@ -63,4 +65,25 @@ async function carregarProgressoReflorestar() {
     const mapa = {};
     data.forEach(r => { mapa[r.nivel] = { melhor: r.melhor_jogadas }; });
     return mapa;
+}
+
+/* ---------------------------------------------------------------
+   Rankings (tela de pré-jogo)
+   --------------------------------------------------------------- */
+
+// Melhores jogadores de um jogo de pontuação.
+// Devolve [{ posicao, nome_usuario, melhor_pontuacao, melhor_tempo_segundos, eh_voce }]
+// (os primeiros colocados e, se estiver fora deles, a linha do próprio jogador).
+// Devolve null se não for possível carregar.
+async function carregarRanking(jogo, limite = 10) {
+    const { data, error } = await supabaseClient.rpc('ranking_jogo', { p_jogo: jogo, p_limite: limite });
+    if (error) { console.error('Erro ao carregar ranking:', error); return null; }
+    return data;
+}
+
+// Ranking do Eco Reflorestar: [{ posicao, nome_usuario, arvores, tempo_total, eh_voce }]
+async function carregarRankingReflorestar(limite = 10) {
+    const { data, error } = await supabaseClient.rpc('ranking_reflorestar', { p_limite: limite });
+    if (error) { console.error('Erro ao carregar ranking:', error); return null; }
+    return data;
 }

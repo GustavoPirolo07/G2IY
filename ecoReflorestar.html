@@ -573,7 +573,7 @@ function carregarNivel(i) {
     indiceNivel = i;
     nivel = niveisProntos[i];
     const chaveInicio = nivel.inicio.join(',');
-    estado = { r: nivel.inicio[0], c: nivel.inicio[1], plantados: new Set([chaveInicio]), jogadas: 0, historico: [], animando: false, pendente: null, venceu: false };
+    estado = { r: nivel.inicio[0], c: nivel.inicio[1], plantados: new Set([chaveInicio]), jogadas: 0, historico: [], animando: false, pendente: null, venceu: false, t0: performance.now() };
     mostrarTela('jogo');
 
     tab.className = '';
@@ -770,7 +770,8 @@ function vencer() {
     const recorde = antes !== null && estado.jogadas < antes;
     const jogadas = estado.jogadas, idFase = nivel.id;
     if (antes === null || jogadas < antes) progresso[idFase] = { melhor: jogadas };
-    const registro = registrarReflorestar(idFase, jogadas);   // devolve os pontos ecológicos ganhos
+    const tempo = Math.max(1, Math.round((performance.now() - estado.t0) / 1000));   // segundos desde que a fase abriu
+    const registro = registrarReflorestar(idFase, jogadas, tempo);   // devolve os pontos ecológicos ganhos
     agendar(() => {
         // espera a confirmação do banco (no máximo 2,5 s) para o menu já mostrar o progresso atualizado
         Promise.race([registro, new Promise(r => setTimeout(() => r(0), 2500))]).then(pontos => {

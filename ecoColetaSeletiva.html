@@ -92,6 +92,8 @@
         /* cobertura: início e pausa */
         .cobertura { position: absolute; inset: 0; z-index: 8; background: rgba(255,255,255,.9); display: flex; align-items: center; justify-content: center; padding: 14px; text-align: center; }
         .cobertura-caixa { width: 100%; max-width: 360px; }
+        .contagem { font-size: 5.5rem; font-weight: 800; color: var(--verde); line-height: 1; animation: pulsoContagem 0.7s ease-out; }
+        @keyframes pulsoContagem { 0% { transform: scale(1.6); opacity: 0; } 40% { opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         .cobertura h2 { margin: 0 0 6px; font-size: 1.5rem; }
         .cobertura p { margin: 0 0 10px; color: var(--suave); font-size: 0.92rem; line-height: 1.4; }
         .regras { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; text-align: left; }
@@ -474,17 +476,17 @@ const ICONE_SETAS = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 L
 const ICONE_BAIXO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9 L12 16 L19 9" fill="none" stroke="#c17900" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICONE_VIDAS = CORACAO;
 
-function telaInicial() {
-    abrirCobertura({
-        titulo: 'Separe o lixo!',
-        texto: 'Leve cada item que cai até a lixeira da cor certa.',
-        regras: [
-            [ICONE_SETAS, 'Use as setas para escolher a lixeira.'],
-            [ICONE_BAIXO, 'Segure a seta de baixo para cair mais rápido.'],
-            [ICONE_VIDAS, 'Você tem 3 vidas: cada erro tira uma.']
-        ],
-        botoes: [['Começar', iniciarJogo]]
-    });
+// contagem 3, 2, 1 logo que o jogador chega da tela de pré-jogo
+function contagem() {
+    const c = $('cobertura'); c.innerHTML = ''; c.hidden = false;
+    const num = criar('div', 'contagem'); c.appendChild(num);
+    let n = 3;
+    const passo = () => {
+        if (n === 0) { fecharCobertura(); iniciarJogo(); return; }
+        num.textContent = n; num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
+        n--; setTimeout(passo, 700);
+    };
+    passo();
 }
 
 function pausar() {
@@ -611,7 +613,7 @@ montarCampo();
 renderVidas(false);
 renderHud(false);
 medir();
-telaInicial();
+window.paginaLiberada.then(ok => { if (ok) contagem(); });
 </script>
 </body>
 </html>

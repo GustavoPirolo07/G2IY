@@ -42,6 +42,8 @@
 
         .cobertura { position: absolute; inset: 0; z-index: 8; background: rgba(255,255,255,.92); display: flex; align-items: center; justify-content: center; padding: 14px; text-align: center; overflow-y: auto; }
         .cobertura-caixa { width: 100%; max-width: 360px; }
+        .contagem { font-size: 5.5rem; font-weight: 800; color: var(--verde); line-height: 1; animation: pulsoContagem 0.7s ease-out; }
+        @keyframes pulsoContagem { 0% { transform: scale(1.6); opacity: 0; } 40% { opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         .cobertura h2 { margin: 0 0 6px; font-size: 1.5rem; }
         .cobertura p { margin: 0 0 10px; color: var(--suave); font-size: 0.92rem; line-height: 1.4; }
         .regras { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; text-align: left; }
@@ -416,20 +418,17 @@ function abrirCobertura({ titulo, texto, regras, botoes }) {
 function fecharCobertura() { const c = $('cobertura'); c.hidden = true; c.innerHTML = ''; }
 function iconeSvg(svg) { const s = criar('span'); s.innerHTML = svg; s.firstElementChild.setAttribute('width', 26); s.firstElementChild.setAttribute('height', 26); s.style.display = 'inline-flex'; return s; }
 
-function telaInicial() {
-    const seta = `<svg viewBox="0 0 24 24"><path d="M9 6 L3 12 L9 18 M15 6 L21 12 L15 18" fill="none" stroke="#2e7d32" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    const cacamba = `<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3" fill="#e53935"/><rect x="6" y="9" width="12" height="3" rx="1.5" fill="rgba(255,255,255,.5)"/></svg>`;
-    const parede = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="#ffcdd2" stroke="#e53935" stroke-width="2"/><path d="M8 8 L16 16 M16 8 L8 16" stroke="#e53935" stroke-width="2.4" stroke-linecap="round"/></svg>`;
-    abrirCobertura({
-        titulo: 'Limpe a cidade!',
-        texto: 'Dirija o caminhão de lixo até o lixo espalhado pelo gramado.',
-        regras: [
-            [iconeSvg(seta), 'Use as setas para virar o caminhão.'],
-            [iconeSvg(cacamba), 'Cada lixo coletado acrescenta uma caçamba, na cor da lixeira certa.'],
-            [iconeSvg(parede), 'Não bata nas bordas nem nas próprias caçambas.']
-        ],
-        botoes: [['Começar', iniciar]]
-    });
+// contagem 3, 2, 1 logo que o jogador chega da tela de pré-jogo
+function contagem() {
+    const c = $('cobertura'); c.innerHTML = ''; c.hidden = false;
+    const num = criar('div', 'contagem'); c.appendChild(num);
+    let n = 3;
+    const passo = () => {
+        if (n === 0) { fecharCobertura(); iniciar(); return; }
+        num.textContent = n; num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
+        n--; setTimeout(passo, 700);
+    };
+    passo();
 }
 
 function pausar() {
@@ -503,7 +502,7 @@ window.addEventListener('resize', redimensionar);
 reiniciar();
 redimensionar();
 $('recorde').textContent = melhor;
-telaInicial();
+window.paginaLiberada.then(ok => { if (ok) contagem(); });
 S.ultimoT = performance.now();
 S.raf = requestAnimationFrame(laco);
 </script>
