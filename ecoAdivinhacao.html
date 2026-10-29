@@ -13,7 +13,7 @@
         }
         /* o tabuleiro se ajusta à altura da tela para caber sem rolar */
         @supports (height: 100svh) {
-            :root { --tile: max(38px, min(76px, calc((100vw - 84px) / 5), calc((100svh - var(--sobra)) / 5))); }
+            :root { --tile: max(38px, min(76px, calc((100vw - 84px) / 5), calc((100svh - var(--sobra)) / 6))); }
         }
         * { box-sizing: border-box; }
         body {font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: whitesmoke; color: #2e7d32; margin: 0; padding: 12px 12px 24px; min-height: 100vh; }
@@ -69,7 +69,7 @@
         let attempts = 0;
         let acabou = false;
         let msgTimer = null;
-        const maxAttempts = 5;
+        const maxAttempts = 6;
         const board = document.getElementById("game-board");
         const campo = document.getElementById("guess-input");
         for (let i = 0; i < maxAttempts; i++) {
@@ -143,7 +143,7 @@
 
             if (guess === word) {
                 acabou = true;
-                const pontos = 100 - attempts * 10; // 1ª tentativa = 90, perde 10 por tentativa extra
+                const pontos = 110 - attempts * 10; // 1ª tentativa = 100, perde 10 por tentativa extra (6ª = 50)
                 Promise.allSettled([registrarResultado('adivinhacao', pontos), esperar(700)]).then(() =>
                     mostrarPopupFim({
                         emoji: '💡',

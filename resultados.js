@@ -46,24 +46,26 @@ function estrelasReflorestar(jogadas, otimo) {
 // Envia a conclusão de uma fase. Devolve quantos pontos ecológicos foram ganhos
 // (só ganha pontos quando melhora o número de árvores daquela fase).
 // O tempo (em segundos) só conta em fases perfeitas e serve de desempate no ranking.
-async function registrarReflorestar(nivel, jogadas, tempoSegundos = null) {
+// Se a pessoa usou a dica nessa fase, a conclusão vale no máximo 1 árvore (usouDica = true).
+async function registrarReflorestar(nivel, jogadas, tempoSegundos = null, usouDica = false) {
     const { data, error } = await supabaseClient.rpc('registrar_reflorestar', {
         p_nivel: nivel,
         p_jogadas: jogadas,
-        p_tempo: tempoSegundos
+        p_tempo: tempoSegundos,
+        p_dica: !!usouDica
     });
     if (error) { console.error('Erro ao registrar fase:', error); return 0; }
     return Number(data) || 0;
 }
 
-// Progresso do jogador logado: { [fase]: { melhor: jogadas } }
+// Progresso do jogador logado: { [fase]: { melhor: jogadas sem dica (ou null), estrelas: 1 a 3 } }
 async function carregarProgressoReflorestar() {
     const { data, error } = await supabaseClient
         .from('progresso_reflorestar')
-        .select('nivel, melhor_jogadas');
+        .select('nivel, melhor_jogadas, estrelas');
     if (error) { console.error(error); return {}; }
     const mapa = {};
-    data.forEach(r => { mapa[r.nivel] = { melhor: r.melhor_jogadas }; });
+    data.forEach(r => { mapa[r.nivel] = { melhor: r.melhor_jogadas, estrelas: r.estrelas }; });
     return mapa;
 }
 
@@ -85,5 +87,12 @@ async function carregarRanking(jogo, limite = 10) {
 async function carregarRankingReflorestar(limite = 10) {
     const { data, error } = await supabaseClient.rpc('ranking_reflorestar', { p_limite: limite });
     if (error) { console.error('Erro ao carregar ranking:', error); return null; }
+    return data;
+}
+
+// Ranking geral de pontuação ecológica (menu principal): [{ posicao, nome_usuario, pontuacao, eh_voce }]
+async function carregarRankingGeral(limite = 10) {
+    const { data, error } = await supabaseClient.rpc('ranking_geral', { p_limite: limite });
+    if (error) { console.error('Erro ao carregar ranking geral:', error); return null; }
     return data;
 }

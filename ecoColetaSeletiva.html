@@ -31,7 +31,7 @@
         .hud { grid-area: hud; } .campo { grid-area: campo; } .controles { grid-area: controles; } .instrucao { grid-area: instrucao; display: none; }
 
         /* ---------- placar ---------- */
-        .hud { display: grid; grid-template-columns: 1fr auto 1fr auto; align-items: end; gap: 10px; }
+        .hud { display: grid; grid-template-columns: 1fr auto 1fr auto auto; align-items: end; gap: 10px; }
         .hud-bloco span { display: block; font-size: 0.72rem; color: var(--suave); }
         .hud-bloco b { font-size: 1.5rem; line-height: 1.1; display: inline-block; }
         .hud-bloco.centro { text-align: center; }
@@ -154,6 +154,7 @@
             .hud-bloco.centro b { font-size: 1.15rem; padding: 3px 16px; }
             .vida svg { width: 34px; height: 34px; }
             .btn-pausa { width: 100%; height: 44px; border-radius: 12px; }
+            .btn-reiniciar { margin-top: -4px; }
             .btn-pausa .txt { display: inline; }
             .reciclar { width: 40px; height: 40px; }
             .lix-nome { font-size: 0.8rem; }
@@ -161,6 +162,11 @@
             .item-arte { width: min(78%, 84px); }
             .instrucao { display: block; text-align: left; }
             .btn-controle { min-height: 66px; }
+        }
+        @media (max-width: 380px) {
+            .hud { gap: 6px; }
+            .vida svg { width: 20px; height: 20px; }
+            .hud-bloco.centro b { padding: 2px 8px; }
         }
         @media (prefers-reduced-motion: reduce) {
             .item-arte svg, .aviso-nivel.mostrar, .mais, .lixeira.abre .tampa, .lixeira.erro { animation: none !important; }
@@ -184,6 +190,10 @@
                 <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.6" height="12" rx="1" fill="currentColor"/><rect x="9.4" y="2" width="3.6" height="12" rx="1" fill="currentColor"/></svg>
                 <span class="txt">Pausar</span>
             </button>
+            <button type="button" class="btn-pausa btn-reiniciar" id="btn-reiniciar" aria-label="Reiniciar a partida">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8 a5 5 0 1 1 -1.8 -3.85" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M13.4 1.8 V5.4 H9.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="txt">Reiniciar</span>
+            </button>
         </div>
 
         <div class="campo" id="campo">
@@ -205,7 +215,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 L17 12 L9 20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
         </div>
-        <p class="instrucao">Teclado: setas ou A/D movem o item. Segure a seta para baixo (ou S) para cair mais rápido. P pausa o jogo.</p>
+        <p class="instrucao">Teclado: setas ou A/D movem o item. Segure a seta para baixo (ou S) para cair mais rápido. P pausa o jogo. R reinicia a partida.</p>
     </section>
 </div>
 
@@ -489,11 +499,23 @@ function contagem() {
     passo();
 }
 
+// Recomeça na hora. Se já havia pontos na partida, eles são gravados antes de zerar.
+function reiniciarPartida() {
+    if (!S.rodando) return;   // durante a contagem inicial ou depois do fim não faz nada
+    if (S.pontos > 0) {
+        registrarResultado('coleta_seletiva', Math.min(S.pontos, 1000));
+        if (S.pontos > melhor) melhor = S.pontos;
+    }
+    const popup = document.getElementById('popup-jogo'); if (popup) popup.remove();
+    fecharCobertura();
+    iniciarJogo();
+}
+
 function pausar() {
     if (!S.rodando || S.pausado || S.esperaFim > 0 || document.getElementById('popup-jogo')) return;
     S.pausado = true;
     setSoltando(false);
-    abrirCobertura({ titulo: 'Jogo pausado', texto: 'O tempo está parado.', botoes: [['Continuar', continuar], ['Voltar ao Menu', () => { window.location.href = 'menu.html'; }, true]] });
+    abrirCobertura({ titulo: 'Jogo pausado', texto: 'O tempo está parado.', botoes: [['Continuar', continuar], ['Reiniciar partida', reiniciarPartida, true], ['Voltar ao Menu', () => { window.location.href = 'menu.html'; }, true]] });
 }
 function continuar() {
     if (!S.pausado) return;
@@ -582,11 +604,13 @@ segurar($('btn-dir'), () => mover(1));
     b.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') setSoltando(false); });
 })();
 $('btn-pausa').onclick = () => (S.pausado ? continuar() : pausar());
+$('btn-reiniciar').onclick = reiniciarPartida;
 
 document.addEventListener('keydown', e => {
     if (document.getElementById('popup-jogo')) return;
     const k = e.key;
     if (k === 'p' || k === 'P' || k === 'Escape') { if (S.rodando) { e.preventDefault(); S.pausado ? continuar() : pausar(); } return; }
+    if (k === 'r' || k === 'R') { e.preventDefault(); reiniciarPartida(); return; }
     if (e.target && e.target.tagName === 'BUTTON' && (k === 'Enter' || k === ' ')) return;
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
         e.preventDefault();

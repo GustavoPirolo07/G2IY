@@ -238,7 +238,7 @@
                 <button type="button" id="btn-reiniciar">Reiniciar</button>
             </div>
             <div id="aviso" role="status" aria-live="polite"></div>
-            <p class="instrucao">A semente rola até bater numa pedra ou na borda. Plante uma árvore em todos os quadrados livres.
+            <p class="instrucao">A semente rola até bater numa pedra ou na borda. Plante uma árvore em todos os quadrados livres. Usar a dica limita a fase a 1 árvore.
                 <span class="so-teclado">Use as setas do teclado ou WASD.</span>
                 <span class="so-toque">Deslize o dedo no campo ou na área livre abaixo dos botões.</span></p>
         </section>
@@ -477,7 +477,9 @@ let nivel = null, indiceNivel = 0, tiles = [], telaAtual = 'catalogo';
 let estado = null, timers = [], rotacao = 0, avisoTimer = null;
 
 /* ---------- progresso do jogador (vem do banco de dados) ---------- */
-let progresso = {};   // { [fase]: { melhor: jogadas } }
+let progresso = {};   // { [fase]: { melhor: jogadas sem dica (ou null), estrelas } }
+const dicasUsadas = new Set();   // fases em que a dica foi usada nesta tentativa (vale no máximo 1 árvore)
+let dicaConfirmar = false, dicaConfirmarTimer = null;
 function sincronizarProgresso() {
     return carregarProgressoReflorestar().then(mapa => { progresso = mapa; if (telaAtual === 'catalogo') mostrarCatalogo(); });
 }
@@ -537,18 +539,18 @@ function mostrarCatalogo() {
     const proxima = niveisProntos.findIndex(n => !progresso[n.id]);
     niveisProntos.forEach((n, i) => {
         const reg = progresso[n.id];
-        const e = reg ? estrelas(reg.melhor, n.otimo) : 0;
+        const e = reg ? reg.estrelas : 0;
         total += e;
         const card = criar('button', 'card-nivel' + (i === proxima ? ' proxima' : ''));
         card.type = 'button';
-        card.setAttribute('aria-label', `Fase ${n.id}, ${n.nome}. Mínimo de ${n.otimo} jogadas. ` + (reg ? `Seu melhor: ${reg.melhor} jogadas, ${e} de 3 árvores.` : 'Ainda não jogada.'));
+        card.setAttribute('aria-label', `Fase ${n.id}, ${n.nome}. Mínimo de ${n.otimo} jogadas. ` + (reg ? (reg.melhor != null ? `Seu melhor: ${reg.melhor} jogadas, ${e} de 3 árvores.` : `Concluída com dica, ${e} de 3 árvores.`) : 'Ainda não jogada.'));
         card.appendChild(criarPrevia(n, !!reg));
         const info = criar('div', 'card-info');
         if (i === proxima) info.appendChild(criar('span', 'card-badge', 'Próxima'));
         info.appendChild(criar('strong', '', `Fase ${n.id}`));
         info.appendChild(criar('span', 'card-nome', n.nome));
         info.appendChild(criar('span', 'card-linha', `Mínimo: ${n.otimo} jogadas`));
-        info.appendChild(criar('span', 'card-linha', reg ? `Seu melhor: ${reg.melhor} jogadas` : 'Ainda não jogada'));
+        info.appendChild(criar('span', 'card-linha', reg ? (reg.melhor != null ? `Seu melhor: ${reg.melhor} jogadas` : 'Concluída com dica') : 'Ainda não jogada'));
         info.appendChild(arvoresNota(e, 'arvores-nota'));
         card.appendChild(info);
         card.onclick = () => carregarNivel(i);
@@ -575,6 +577,7 @@ function carregarNivel(i) {
     const chaveInicio = nivel.inicio.join(',');
     estado = { r: nivel.inicio[0], c: nivel.inicio[1], plantados: new Set([chaveInicio]), jogadas: 0, historico: [], animando: false, pendente: null, venceu: false, t0: performance.now() };
     mostrarTela('jogo');
+    dicaConfirmar = false;
 
     tab.className = '';
     tab.innerHTML = '';
@@ -750,11 +753,21 @@ function desfazer() {
 
 function dica() {
     if (!estado || estado.animando || estado.venceu) return;
+    // primeiro toque só avisa; o segundo confirma (evita perder as árvores sem querer)
+    if (!dicasUsadas.has(nivel.id) && !dicaConfirmar) {
+        dicaConfirmar = true;
+        aviso('Usar a dica limita esta fase a 1 árvore. Toque em Dica de novo para confirmar.', 4500);
+        clearTimeout(dicaConfirmarTimer);
+        dicaConfirmarTimer = setTimeout(() => { dicaConfirmar = false; }, 4500);
+        return;
+    }
+    dicaConfirmar = false;
     const p = proximaJogada(nivel, estado.r, estado.c, estado.plantados);
     if (!p || !p.dir) {
         aviso('Não consegui calcular uma dica agora. Tente reiniciar a fase.', 4500);
         return;
     }
+    dicasUsadas.add(nivel.id);
     seta.style.setProperty('--ang', ANGULO_DIR[p.dir] + 'deg');
     seta.classList.add('mostrar');
     aviso(`Dica: deslize ${NOME_DIR[p.dir]}. Faltam ${p.faltam === 1 ? '1 jogada' : p.faltam + ' jogadas'} no mínimo.`, 4500);
@@ -766,17 +779,25 @@ function vencer() {
     [...tab.querySelectorAll('.arvore')].forEach((a, i) => a.style.setProperty('--ordem', i));
     tab.classList.add('festa');
 
-    const antes = progresso[nivel.id] ? progresso[nivel.id].melhor : null;
-    const recorde = antes !== null && estado.jogadas < antes;
     const jogadas = estado.jogadas, idFase = nivel.id;
-    if (antes === null || jogadas < antes) progresso[idFase] = { melhor: jogadas };
+    const usouDica = dicasUsadas.has(idFase);
+    dicasUsadas.delete(idFase);
+    const reg = progresso[idFase];
+    const antes = reg && reg.melhor != null ? reg.melhor : null;
+    const recorde = !usouDica && antes !== null && jogadas < antes;
+    const estrelasRodada = usouDica ? Math.min(1, estrelas(jogadas, nivel.otimo)) : estrelas(jogadas, nivel.otimo);
+    // dica: não melhora o recorde de jogadas, só garante 1 árvore
+    progresso[idFase] = {
+        melhor: usouDica ? (reg ? reg.melhor : null) : (antes === null ? jogadas : Math.min(antes, jogadas)),
+        estrelas: Math.max(reg ? reg.estrelas : 0, estrelasRodada)
+    };
     const tempo = Math.max(1, Math.round((performance.now() - estado.t0) / 1000));   // segundos desde que a fase abriu
-    const registro = registrarReflorestar(idFase, jogadas, tempo);   // devolve os pontos ecológicos ganhos
+    const registro = registrarReflorestar(idFase, jogadas, tempo, usouDica);   // devolve os pontos ecológicos ganhos
     agendar(() => {
         // espera a confirmação do banco (no máximo 2,5 s) para o menu já mostrar o progresso atualizado
         Promise.race([registro, new Promise(r => setTimeout(() => r(0), 2500))]).then(pontos => {
             if (!estado || !estado.venceu || nivel.id !== idFase) return;
-            abrirPopupVitoria(antes, recorde, pontos);
+            abrirPopupVitoria(antes, recorde, pontos, usouDica);
         });
     }, REDUZIR ? 200 : 1300);
 }
@@ -784,9 +805,9 @@ function vencer() {
 /* ---------- popup ---------- */
 function fecharPopup() { const p = el('popup-fase'); if (p) p.remove(); }
 
-function abrirPopupVitoria(antes, recorde, pontosGanhos) {
+function abrirPopupVitoria(antes, recorde, pontosGanhos, usouDica) {
     const ultima = indiceNivel === NIVEIS.length - 1;
-    const e = estrelas(estado.jogadas, nivel.otimo);
+    const e = usouDica ? Math.min(1, estrelas(estado.jogadas, nivel.otimo)) : estrelas(estado.jogadas, nivel.otimo);
 
     const overlay = criar('div'); overlay.id = 'popup-fase';
     const card = criar('div', 'pf-card'); card.tabIndex = -1;
@@ -803,9 +824,11 @@ function abrirPopupVitoria(antes, recorde, pontosGanhos) {
     caixa.appendChild(criar('strong', '', String(estado.jogadas)));
     caixa.appendChild(criar('span', '', estado.jogadas === 1 ? 'jogada' : 'jogadas'));
     card.appendChild(caixa);
-    card.appendChild(criar('p', 'pf-msg', e === 3
-        ? 'Você usou o mínimo possível de jogadas.'
-        : `Mínimo possível: ${nivel.otimo} jogadas. Tente de novo para ganhar mais árvores!`));
+    card.appendChild(criar('p', 'pf-msg', usouDica
+        ? 'Com dica, a fase vale no máximo 1 árvore. Jogue de novo sem dicas para ganhar mais!'
+        : e === 3
+            ? 'Você usou o mínimo possível de jogadas.'
+            : `Mínimo possível: ${nivel.otimo} jogadas. Tente de novo para ganhar mais árvores!`));
     if (antes !== null && !recorde) card.appendChild(criar('p', 'pf-msg', `Seu melhor continua sendo ${antes} jogadas.`));
 
     const botoes = criar('div', 'pf-botoes');

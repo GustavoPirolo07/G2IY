@@ -27,6 +27,44 @@
         .toggle-link {margin-top: 20px; font-size: 0.9rem; color: #558b2f;}
         .toggle-link span { color: var(--primary-color); text-decoration: underline; cursor: pointer; font-weight: 600;}
         .game-best {font-size: 0.8rem; font-weight: 600; color: #33691e; margin-top: 2px;}
+        /* Ranking geral (lado esquerdo no computador; recolhido embaixo no celular) */
+        .layout {display: flex; align-items: flex-start; justify-content: center; gap: 22px; width: 100%; max-width: 860px;}
+        .layout .container {flex: 0 1 480px; min-width: 0;}
+        .ranking-geral {display: none; flex: 0 0 300px; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 18px; text-align: left;}
+        body.mostrar-ranking .ranking-geral {display: block;}
+        .rg-cab {display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: none; padding: 0; text-align: left; color: var(--primary-color); cursor: default; font-family: inherit;}
+        .rg-ico {font-size: 1.6rem; line-height: 1;}
+        .rg-textos {flex: 1; min-width: 0; display: flex; flex-direction: column;}
+        .rg-textos strong {font-size: 1.1rem;}
+        .rg-textos small {font-size: 0.8rem; color: #558b2f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+        .rg-seta {display: none; font-size: 1.1rem; transition: transform 0.2s;}
+        .rg-corpo {display: block; margin-top: 12px;}
+        .rg-lista {list-style: none; margin: 0; padding: 0; display: grid; gap: 5px;}
+        .rg-item {display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 9px; padding: 6px 9px; border-radius: 10px; background: #f7faf3; border: 2px solid transparent; font-size: 0.9rem;}
+        .rg-pos {width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 0.8rem; color: #558b2f; background: #e3efd6;}
+        .rg-nome {font-weight: 600; color: #2f4f2f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+        .rg-pts {font-weight: 800; color: var(--primary-hover); white-space: nowrap;}
+        .rg-item.top1 {background: #fff8e1; border-color: #f9a825;}
+        .rg-item.top2 {background: #f1f5f7; border-color: #b0bec5;}
+        .rg-item.top3 {background: #fbece6; border-color: #cd8a5a;}
+        .rg-item.top1 .rg-pos {background: #f9a825; color: #fff;}
+        .rg-item.top2 .rg-pos {background: #90a4ae; color: #fff;}
+        .rg-item.top3 .rg-pos {background: #cd7f32; color: #fff;}
+        .rg-item.top1 .rg-nome, .rg-item.top2 .rg-nome, .rg-item.top3 .rg-nome {font-weight: 800;}
+        .rg-item.eu {border-color: var(--primary-color);}
+        .rg-voce {font-size: 0.68rem; font-weight: 700; color: #fff; background: var(--primary-color); border-radius: 999px; padding: 1px 6px; margin-left: 5px; vertical-align: 1px;}
+        .rg-retic {text-align: center; color: #558b2f; line-height: 0.6; letter-spacing: 3px;}
+        .rg-vazio {text-align: center; color: #558b2f; font-size: 0.9rem; padding: 10px 4px; line-height: 1.4;}
+        @media (max-width: 899px) {
+            .layout {flex-direction: column; align-items: center; gap: 14px;}
+            .layout .container {flex: 0 0 auto; width: 100%; max-width: 480px;}
+            .ranking-geral {flex: 0 0 auto; order: 2; width: 100%; max-width: 480px; padding: 12px 16px;}
+            .rg-cab {cursor: pointer;}
+            .rg-seta {display: block;}
+            .rg-corpo {display: none;}
+            .ranking-geral.aberto .rg-corpo {display: block;}
+            .ranking-geral.aberto .rg-seta {transform: rotate(180deg);}
+        }
         /* Aba lateral: Minha conta */
         .menu-topo {display: flex; justify-content: flex-end; margin-bottom: 10px;}
         .btn-conta {background: var(--card-bg); border: 2px solid var(--card-border); color: var(--primary-color); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: 0.2s;}
@@ -67,6 +105,15 @@
     </style>
 </head>
 <body>
+    <div class="layout">
+    <aside class="ranking-geral" id="ranking-geral" aria-labelledby="rg-titulo">
+        <button type="button" class="rg-cab" id="rg-toggle" aria-expanded="false" aria-controls="rg-corpo">
+            <span class="rg-ico" aria-hidden="true">🏆</span>
+            <span class="rg-textos"><strong id="rg-titulo">Ranking geral</strong><small id="rg-resumo">Pontuação ecológica</small></span>
+            <span class="rg-seta" aria-hidden="true">▾</span>
+        </button>
+        <div class="rg-corpo" id="rg-corpo"><ol class="rg-lista" id="rg-lista"></ol></div>
+    </aside>
     <div class="container">
         <div id="login-screen" class="screen active">
             <h1>EcoAventuras</h1>
@@ -135,7 +182,7 @@
                 <a href="prejogo.html?jogo=adivinhacao" class="game-card">
                     <div class="game-info">
                         <span class="game-title">💡 Eco Adivinhação</span>
-                        <span class="game-desc">Descubra a palavra secreta em 5 tentativas</span>
+                        <span class="game-desc">Descubra a palavra secreta em 6 tentativas</span>
                         <span class="game-best" id="best-adivinhacao">🏆 Melhor pontuação: —</span>
                     </div>
                     <span class="game-icon">➔</span>
@@ -176,6 +223,7 @@
             <button class="btn-logout" onclick="handleLogout()">Sair da Conta</button>
         </div>
     </div>
+    </div><!-- /layout -->
 
     <!-- Aba lateral: Minha conta -->
     <div id="conta-overlay" class="conta-overlay" onclick="fecharConta()"></div>
@@ -247,7 +295,7 @@ async function atualizarMelhores() {
             const [melhores, fases] = await Promise.all([carregarMelhoresResultados(), carregarProgressoReflorestar()]);
             // Eco Reflorestar: soma das árvores (1 a 3 por fase) conquistadas
             let arvores = 0;
-            REFLORESTAR_OTIMOS.forEach((otimo, i) => { const f = fases[i + 1]; if (f) arvores += estrelasReflorestar(f.melhor, otimo); });
+            REFLORESTAR_OTIMOS.forEach((otimo, i) => { const f = fases[i + 1]; if (f) arvores += f.estrelas; });
             document.getElementById('best-reflorestar').textContent = `🌳 Árvores conquistadas: ${arvores} de ${REFLORESTAR_OTIMOS.length * 3}`;
             ['caca_palavras', 'adivinhacao', 'quiz', 'coleta_seletiva', 'caminhao'].forEach(jogo => {
                 const el = document.getElementById('best-' + jogo);
@@ -265,6 +313,7 @@ async function atualizarMelhores() {
             switchScreen('menu-screen');
             atualizarPontuacao();
             atualizarMelhores();
+            atualizarRankingGeral();
         }
 
         // VERIFICAÇÃO DE SESSÃO ATIVA (a sessão fica gerenciada pelo Supabase)
@@ -282,6 +331,7 @@ async function atualizarMelhores() {
             if (e.persisted && document.getElementById('menu-screen').classList.contains('active')) {
                 atualizarPontuacao();
                 atualizarMelhores();
+                atualizarRankingGeral();
             }
         });
 
@@ -291,6 +341,7 @@ async function atualizarMelhores() {
             limparValidacao();
             fecharConta();
             document.getElementById(screenId).classList.add('active');
+            document.body.classList.toggle('mostrar-ranking', screenId === 'menu-screen');
         }
 
         // ---------- Validação visual dos campos ----------
@@ -436,6 +487,37 @@ async function atualizarMelhores() {
             setTimeout(() => switchScreen('login-screen'), 1500);
         }
 
+        // ---------- Ranking geral de pontuação ecológica ----------
+        document.getElementById('rg-toggle').addEventListener('click', () => {
+            const box = document.getElementById('ranking-geral');
+            const aberto = box.classList.toggle('aberto');
+            document.getElementById('rg-toggle').setAttribute('aria-expanded', aberto);
+        });
+
+        async function atualizarRankingGeral() {
+            const lista = document.getElementById('rg-lista'), resumo = document.getElementById('rg-resumo');
+            const linhas = await carregarRankingGeral(10);
+            lista.innerHTML = '';
+            const aviso = texto => { const li = document.createElement('li'); li.className = 'rg-vazio'; li.textContent = texto; lista.appendChild(li); };
+            if (!linhas) { resumo.textContent = 'Pontuação ecológica'; return aviso('Não foi possível carregar o ranking agora.'); }
+            if (!linhas.length) { resumo.textContent = 'Ainda sem pontuações'; return aviso('Ainda não há pontuações. Jogue para abrir o ranking!'); }
+            const eu = linhas.find(l => l.eh_voce);
+            resumo.textContent = eu ? `Você está em ${eu.posicao}º lugar, com ${eu.pontuacao} pts` : 'Jogue para entrar no ranking';
+            let anterior = 0;
+            linhas.forEach(l => {
+                if (anterior && l.posicao > anterior + 1) { const r = document.createElement('li'); r.className = 'rg-retic'; r.textContent = '···'; lista.appendChild(r); }
+                const li = document.createElement('li');
+                li.className = 'rg-item' + (l.posicao <= 3 ? ' top' + l.posicao : '') + (l.eh_voce ? ' eu' : '');
+                const pos = document.createElement('span'); pos.className = 'rg-pos'; pos.textContent = l.posicao;
+                const nome = document.createElement('span'); nome.className = 'rg-nome'; nome.textContent = l.nome_usuario || 'Jogador';
+                if (l.eh_voce) { const v = document.createElement('span'); v.className = 'rg-voce'; v.textContent = 'você'; nome.appendChild(v); }
+                const pts = document.createElement('span'); pts.className = 'rg-pts'; pts.textContent = `${l.pontuacao} pts`;
+                li.append(pos, nome, pts);
+                lista.appendChild(li);
+                anterior = l.posicao;
+            });
+        }
+
         // ---------- Aba lateral: Minha conta ----------
         let contaUsuario = null; // { id, email, nome }
 
@@ -532,6 +614,7 @@ async function atualizarMelhores() {
             marcarCampo(id, '');
             document.getElementById(id).classList.remove('valid');
             mostrarMsgConta('conta-nome-msg', 'Nome de usuário alterado com sucesso!', true);
+            atualizarRankingGeral();
         }
 
         // Alterar senha: confere a senha atual (novo login) antes de gravar a nova
