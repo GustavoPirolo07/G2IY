@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoAventuras - Criar nova senha</title>
+    <style>
+        :root { --primary-color: #2e7d32; --primary-hover: #1b5e20; --bg-color: #e8f5e9; --error-color: #d32f2f; --success-color: #388e3c; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; background: var(--bg-color); color: var(--primary-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 15px; }
+        .container { background: white; width: 100%; max-width: 480px; padding: 30px 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
+        h1 { font-size: 1.8rem; margin-bottom: 8px; }
+        p { color: #558b2f; font-size: 0.95rem; margin-bottom: 22px; line-height: 1.4; }
+        .icone-grande { font-size: 3rem; line-height: 1; margin-bottom: 6px; }
+        .input-group { text-align: left; margin-bottom: 18px; }
+        .input-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
+        .input-group input { width: 100%; padding: 14px; border: 2px solid #a5d6a7; border-radius: 10px; font-size: 1rem; outline: none; transition: 0.2s; background: #fafafa; -webkit-appearance: none; }
+        .input-group input:focus { border-color: var(--primary-color); background: #fff; }
+        .input-group input.invalid { border-color: var(--error-color); background: #fff5f5; }
+        .input-group input.valid { border-color: #4caf50; }
+        .field-hint { font-size: 0.8rem; margin-top: 5px; color: #558b2f; line-height: 1.3; min-height: 1em; }
+        .field-hint.error { color: var(--error-color); font-weight: 600; }
+        .btn-submit { display: block; width: 100%; padding: 14px; font-size: 1.1rem; font-weight: bold; background: var(--primary-color); color: white; border: none; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-top: 10px; text-decoration: none; text-align: center; }
+        .btn-submit:hover { background: var(--primary-hover); }
+        .btn-submit:disabled { opacity: 0.6; cursor: wait; }
+        .message { font-size: 0.9rem; margin-top: 12px; display: none; font-weight: 600; padding: 8px; border-radius: 6px; }
+        .error { color: var(--error-color); background: #ffebee; }
+        .success { color: var(--success-color); background: #e8f5e9; }
+        .estado { display: none; }
+        .estado.ativo { display: block; animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @media (prefers-reduced-motion: reduce) { .estado.ativo { animation: none; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="carregando" class="estado ativo">
+            <div class="icone-grande" aria-hidden="true">🔑</div>
+            <h1>Verificando o link…</h1>
+            <p>Só um instante.</p>
+        </div>
+
+        <div id="formulario" class="estado">
+            <div class="icone-grande" aria-hidden="true">🔑</div>
+            <h1>Criar nova senha</h1>
+            <p>Escolha uma nova senha para a sua conta do EcoAventuras.</p>
+            <form onsubmit="salvarNovaSenha(event)" novalidate>
+                <div class="input-group">
+                    <label for="nova-senha">Nova senha</label>
+                    <input type="password" id="nova-senha" placeholder="Crie uma nova senha" autocomplete="new-password">
+                    <div class="field-hint" id="nova-senha-hint">Mínimo de 8 caracteres, com letras e números.</div>
+                </div>
+                <div class="input-group">
+                    <label for="confirma-senha">Confirmar nova senha</label>
+                    <input type="password" id="confirma-senha" placeholder="Repita a nova senha" autocomplete="new-password">
+                    <div class="field-hint" id="confirma-senha-hint"></div>
+                </div>
+                <button type="submit" id="btn-salvar" class="btn-submit">Salvar nova senha</button>
+                <div id="msg-erro" class="message error"></div>
+            </form>
+        </div>
+
+        <div id="pronto" class="estado">
+            <div class="icone-grande" aria-hidden="true">✅</div>
+            <h1>Senha alterada!</h1>
+            <p>Sua nova senha já está valendo. Levando você para o menu…</p>
+            <a class="btn-submit" href="menu.html">Ir para o menu</a>
+        </div>
+
+        <div id="invalido" class="estado">
+            <div class="icone-grande" aria-hidden="true">⏳</div>
+            <h1>Link inválido ou expirado</h1>
+            <p>Por segurança, o link para criar uma nova senha vale por pouco tempo e só pode ser usado uma vez. Peça um novo na tela de login, em "Esqueci minha senha".</p>
+            <a class="btn-submit" href="menu.html">Voltar ao login</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabaseClient.js"></script>
+    <script>
+        const SENHA_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+        const HASH_INICIAL = window.location.hash || '';          // o link do e-mail traz o código depois do #
+        const veioDeRecuperacao = /type=recovery/.test(HASH_INICIAL);
+        const $ = id => document.getElementById(id);
+        let formularioAberto = false;
+
+        function mostrar(id) {
+            document.querySelectorAll('.estado').forEach(e => e.classList.remove('ativo'));
+            $(id).classList.add('ativo');
+            if (id === 'formulario') { formularioAberto = true; $('nova-senha').focus(); }
+        }
+
+        function marcar(idCampo, msg) {
+            const campo = $(idCampo), dica = $(idCampo + '-hint');
+            campo.classList.toggle('invalid', !!msg);
+            campo.classList.toggle('valid', !msg && campo.value !== '');
+            dica.textContent = msg || (idCampo === 'nova-senha' ? 'Mínimo de 8 caracteres, com letras e números.' : '');
+            dica.classList.toggle('error', !!msg);
+        }
+        const validarSenha = () => { const m = SENHA_RE.test($('nova-senha').value) ? '' : 'A senha precisa ter pelo menos 8 caracteres, com letras e números.'; marcar('nova-senha', m); return !m; };
+        const validarConfirma = () => { const m = $('confirma-senha').value === $('nova-senha').value ? '' : 'As senhas não coincidem.'; marcar('confirma-senha', m); return !m; };
+        $('nova-senha').addEventListener('input', () => { $('msg-erro').style.display = 'none'; if ($('nova-senha').dataset.t) validarSenha(); if ($('confirma-senha').dataset.t) validarConfirma(); });
+        $('nova-senha').addEventListener('blur', () => { $('nova-senha').dataset.t = '1'; validarSenha(); });
+        $('confirma-senha').addEventListener('input', () => { $('msg-erro').style.display = 'none'; if ($('confirma-senha').dataset.t) validarConfirma(); });
+        $('confirma-senha').addEventListener('blur', () => { $('confirma-senha').dataset.t = '1'; validarConfirma(); });
+
+        async function salvarNovaSenha(event) {
+            event.preventDefault();
+            $('nova-senha').dataset.t = $('confirma-senha').dataset.t = '1';
+            const ok1 = validarSenha(), ok2 = validarConfirma();
+            if (!ok1 || !ok2) { (ok1 ? $('confirma-senha') : $('nova-senha')).focus(); return; }
+
+            const botao = $('btn-salvar');
+            botao.disabled = true;
+            const { error } = await supabaseClient.auth.updateUser({ password: $('nova-senha').value });
+            botao.disabled = false;
+
+            if (error) {
+                const msg = error.message || '';
+                if (error.code === 'same_password' || /different from the old/i.test(msg)) marcar('nova-senha', 'A nova senha precisa ser diferente da anterior.');
+                else if (error.code === 'weak_password' || /password/i.test(msg)) marcar('nova-senha', 'Senha fraca: use pelo menos 8 caracteres, com letras e números.');
+                else if (/session|jwt|expired|not authenticated/i.test(msg)) mostrar('invalido');
+                else { $('msg-erro').textContent = 'Não foi possível salvar agora. Tente de novo em instantes.'; $('msg-erro').style.display = 'block'; }
+                return;
+            }
+            mostrar('pronto');
+            setTimeout(() => { window.location.href = 'menu.html'; }, 2500);
+        }
+
+        // ---- ao abrir: confere se o link é de recuperação e se ainda vale ----
+        supabaseClient.auth.onAuthStateChange(evento => { if (evento === 'PASSWORD_RECOVERY') mostrar('formulario'); });
+        (async () => {
+            if (/error(_code)?=/.test(HASH_INICIAL)) return mostrar('invalido');      // link expirado ou já usado
+            const { data: { session } } = await supabaseClient.auth.getSession();     // o Supabase lê o código do link aqui
+            if (veioDeRecuperacao && session) return mostrar('formulario');
+            setTimeout(() => { if (!formularioAberto) mostrar('invalido'); }, veioDeRecuperacao ? 2500 : 300);
+        })();
+    </script>
+</body>
+</html>

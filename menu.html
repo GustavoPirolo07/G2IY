@@ -92,6 +92,11 @@
         .message {font-size: 0.9rem; margin-top: 12px; display: none; font-weight: 600; padding: 8px; border-radius: 6px;}
         .error { color: var(--error-color); background: #ffebee; }
         .success { color: var(--success-color); background: #e8f5e9;}
+        .info { color: #1565c0; background: #e3f2fd;}
+        .icone-grande { font-size: 3rem; line-height: 1; margin-bottom: 6px; }
+        .dica-pequena { font-size: 0.82rem; margin-bottom: 16px; }
+        .esqueci { text-align: right; margin: -6px 0 4px; font-size: 0.85rem; }
+        .esqueci span { color: var(--primary-color); text-decoration: underline; cursor: pointer; font-weight: 600; }
         /* Menu de Jogos (Grid Responsivo) */
         .menu-grid {display: flex; flex-direction: column; gap: 15px;}
         .game-card {display: flex; align-items: center; justify-content: space-between; padding: 20px; background: var(--card-bg); border: 2px solid var(--card-border); border-radius: 12px; text-decoration: none; color: var(--primary-color); font-weight: bold; font-size: 1.15rem; transition: transform 0.2s, background-color 0.2s; cursor: pointer; text-align: left;}
@@ -118,6 +123,7 @@
         <div id="login-screen" class="screen active">
             <h1>EcoAventuras</h1>
             <p>Faça login para entrar no mundo da sustentabilidade</p>
+            <div id="login-aviso" class="message info" style="margin: -10px 0 16px;"></div>
             <form onsubmit="handleLogin(event)" novalidate>
                 <div class="input-group">
                     <label for="login-username">E-mail</label>
@@ -129,6 +135,7 @@
                     <input type="password" id="login-password" placeholder="Sua senha" required autocomplete="current-password">
                     <div class="field-hint" id="login-password-hint"></div>
                 </div>
+                <div class="esqueci"><span onclick="abrirEsqueci()">Esqueci minha senha</span></div>
                 <button type="submit" id="login-btn" class="btn-submit">Entrar</button>
                 <div id="login-error" class="message error">E-mail ou senha incorretos!</div>
             </form>
@@ -163,6 +170,33 @@
                 Já possui conta? <span onclick="switchScreen('login-screen')">Fazer Login</span>
             </div>
         </div>
+        <div id="confirmar-screen" class="screen">
+            <div class="icone-grande" aria-hidden="true">✉️</div>
+            <h1>Confirme seu e-mail</h1>
+            <p id="confirmar-texto">Enviamos um link de confirmação para o seu e-mail.</p>
+            <p class="dica-pequena">Não achou? Olhe também a caixa de spam. Depois de confirmar, é só entrar.</p>
+            <button type="button" id="btn-reenviar" class="btn-submit" onclick="reenviarConfirmacao()">Reenviar e-mail</button>
+            <div id="confirmar-msg" class="message"></div>
+            <div class="toggle-link">
+                Já confirmou? <span onclick="switchScreen('login-screen')">Fazer login</span>
+            </div>
+        </div>
+        <div id="esqueci-screen" class="screen">
+            <h1>Recuperar senha</h1>
+            <p>Digite o e-mail da sua conta e enviaremos um link para você criar uma nova senha.</p>
+            <form onsubmit="handleEsqueci(event)" novalidate>
+                <div class="input-group">
+                    <label for="esqueci-email">E-mail</label>
+                    <input type="email" id="esqueci-email" placeholder="seu@email.com" required autocomplete="email">
+                    <div class="field-hint" id="esqueci-email-hint"></div>
+                </div>
+                <button type="submit" id="esqueci-btn" class="btn-submit">Enviar link</button>
+                <div id="esqueci-msg" class="message"></div>
+            </form>
+            <div class="toggle-link">
+                <span onclick="switchScreen('login-screen')">Voltar ao login</span>
+            </div>
+        </div>
         <div id="menu-screen" class="screen">
             <div class="menu-topo">
                 <button type="button" class="btn-conta" onclick="abrirConta()">👤 Minha conta</button>
@@ -170,6 +204,7 @@
             <h1>Menu Eco</h1>
             <p id="welcome-text" style="margin-bottom: 8px;">Olá! Escolha um jogo para começar:</p>
             <p id="score-display" style="font-weight: 700; margin-bottom: 20px;"></p>
+            <div id="menu-aviso" class="message success" style="margin: -8px 0 16px;"></div>
             <div class="menu-grid">
                 <a href="prejogo.html?jogo=caca_palavras" class="game-card">
                     <div class="game-info">
@@ -282,6 +317,13 @@
     <script src="supabaseClient.js"></script>
     <script src="resultados.js"></script>
     <script>
+        // O link que chega por e-mail traz informações no endereço (depois do #). Guardamos antes de o Supabase apagá-las.
+        const HASH_INICIAL = window.location.hash || '';
+        const URL_BASE = window.location.href.split('#')[0].split('?')[0];
+        const urlDaPagina = nome => new URL(nome, URL_BASE).href;
+        // se o e-mail de recuperação cair aqui por engano, leva para a tela certa
+        if (/type=recovery/.test(HASH_INICIAL)) window.location.replace('redefinir-senha.html' + HASH_INICIAL);
+
         async function atualizarPontuacao() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) return;
@@ -321,8 +363,10 @@ async function atualizarMelhores() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
                 mostrarMenu(session.user.user_metadata.nome_usuario || 'jogador');
+                if (/type=(signup|email)/.test(HASH_INICIAL)) mostrarMsg('menu-aviso', 'E-mail confirmado com sucesso! Sua conta está ativa.', 'success');
             } else {
                 switchScreen('login-screen');
+                if (/error(_code)?=/.test(HASH_INICIAL)) mostrarMsg('login-aviso', 'Este link expirou ou já foi usado. Entre com a sua conta; se precisar, peça um novo e-mail.', 'info');
             }
         });
 
@@ -357,6 +401,7 @@ async function atualizarMelhores() {
             'conta-novo-nome':     v => v.trim() ? '' : 'Digite o novo nome de usuário.',
             'conta-senha-atual':   v => v ? '' : 'Digite sua senha atual.',
             'conta-senha-nova':    v => SENHA_RE.test(v) ? '' : 'A senha precisa ter pelo menos 8 caracteres, com letras e números.',
+            'esqueci-email': v => EMAIL_RE.test(v.trim()) ? '' : 'Digite um e-mail válido, como nome@email.com.',
             'conta-senha-confirma': v => v === document.getElementById('conta-senha-nova').value ? '' : 'As senhas não coincidem.'
         };
 
@@ -394,6 +439,7 @@ async function atualizarMelhores() {
             el.addEventListener('input', () => {
                 const avisoId = id.startsWith('login') ? 'login-error'
                     : id.startsWith('reg') ? 'reg-error'
+                    : id === 'esqueci-email' ? 'esqueci-msg'
                     : id === 'conta-novo-nome' ? 'conta-nome-msg' : 'conta-senha-msg';
                 document.getElementById(avisoId).style.display = 'none';
                 if (el.dataset.tocado) validarCampo(id);
@@ -424,6 +470,7 @@ async function atualizarMelhores() {
             btn.disabled = false;
 
             if (error) {
+                if (error.code === 'email_not_confirmed' || /not confirmed/i.test(error.message || '')) { abrirConfirmar(emailIn, true); return; }
                 errorMsg.style.display = 'block'; // acesso negado
                 ids.forEach(id => document.getElementById(id).classList.add('invalid'));
                 return;
@@ -452,10 +499,13 @@ async function atualizarMelhores() {
             const btn = document.getElementById('reg-btn');
 
             btn.disabled = true;
-            const { error } = await supabaseClient.auth.signUp({
+            const { data, error } = await supabaseClient.auth.signUp({
                 email: emailReg,
                 password: passReg,
-                options: { data: { nome_usuario: userReg } } // o trigger do banco cria o perfil
+                options: {
+                    data: { nome_usuario: userReg },                // o trigger do banco cria o perfil
+                    emailRedirectTo: urlDaPagina('menu.html')       // para onde o link do e-mail leva
+                }
             });
             btn.disabled = false;
 
@@ -477,14 +527,97 @@ async function atualizarMelhores() {
                 return;
             }
 
+            // e-mail que já tem conta: o Supabase responde "sucesso", mas sem identidades (evita revelar contas)
+            if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+                marcarCampo('reg-email', 'Este e-mail já está cadastrado.');
+                return;
+            }
             errorMsg.style.display = 'none';
-            successMsg.style.display = 'block';
-            await supabaseClient.auth.signOut(); // mantém o fluxo: cadastrar -> fazer login
             document.getElementById('reg-email').value = '';
             document.getElementById('reg-username').value = '';
             document.getElementById('reg-password').value = '';
             limparValidacao();
-            setTimeout(() => switchScreen('login-screen'), 1500);
+            if (data && data.session) {   // confirmação por e-mail desligada no Supabase: a pessoa já entrou
+                await supabaseClient.auth.signOut();
+                successMsg.style.display = 'block';
+                setTimeout(() => switchScreen('login-screen'), 1500);
+                return;
+            }
+            abrirConfirmar(emailReg, false);
+        }
+
+        // ---------- Confirmação de e-mail e recuperação de senha ----------
+        let emailPendente = '';
+        const contagens = new Map();
+
+        function mostrarMsg(id, texto, tipo) {
+            const el = document.getElementById(id);
+            el.textContent = texto;
+            el.className = 'message ' + tipo;
+            el.style.display = 'block';
+        }
+
+        // deixa o botão desativado por alguns segundos, mostrando a contagem (o Supabase limita reenvios)
+        function contagemBotao(botao, rotulo, segundos) {
+            clearInterval(contagens.get(botao));
+            let s = segundos;
+            const atualizar = () => {
+                if (s > 0) { botao.disabled = true; botao.textContent = `${rotulo} (${s}s)`; s--; }
+                else { botao.disabled = false; botao.textContent = rotulo; clearInterval(contagens.get(botao)); }
+            };
+            atualizar();
+            if (segundos > 0) contagens.set(botao, setInterval(atualizar, 1000));
+        }
+
+        function abrirConfirmar(email, veioDoLogin) {
+            emailPendente = email;
+            switchScreen('confirmar-screen');
+            document.getElementById('confirmar-texto').textContent = veioDoLogin
+                ? `O e-mail ${email} ainda não foi confirmado. Abra o link que enviamos para ele e depois entre de novo.`
+                : `Enviamos um link de confirmação para ${email}. Clique nele para ativar sua conta.`;
+            contagemBotao(document.getElementById('btn-reenviar'), 'Reenviar e-mail', veioDoLogin ? 0 : 60);
+        }
+
+        async function reenviarConfirmacao() {
+            const botao = document.getElementById('btn-reenviar');
+            botao.disabled = true;
+            const { error } = await supabaseClient.auth.resend({
+                type: 'signup', email: emailPendente, options: { emailRedirectTo: urlDaPagina('menu.html') }
+            });
+            if (error) {
+                mostrarMsg('confirmar-msg', /rate|second|many|limit/i.test(error.message || '')
+                    ? 'Aguarde um pouco antes de pedir outro e-mail.' : 'Não foi possível reenviar agora. Tente de novo em instantes.', 'error');
+            } else {
+                mostrarMsg('confirmar-msg', 'E-mail reenviado! Confira a caixa de entrada e o spam.', 'success');
+            }
+            contagemBotao(botao, 'Reenviar e-mail', 60);
+        }
+
+        function abrirEsqueci() {
+            const digitado = document.getElementById('login-username').value.trim();
+            switchScreen('esqueci-screen');
+            if (EMAIL_RE.test(digitado)) document.getElementById('esqueci-email').value = digitado;
+        }
+
+        async function handleEsqueci(event) {
+            event.preventDefault();
+            const campo = document.getElementById('esqueci-email');
+            campo.dataset.tocado = '1';
+            if (!validarCampo('esqueci-email')) { campo.focus(); return; }
+            const botao = document.getElementById('esqueci-btn');
+            botao.disabled = true;
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(campo.value.trim().toLowerCase(), {
+                redirectTo: urlDaPagina('redefinir-senha.html')
+            });
+            if (error) {
+                botao.disabled = false;
+                mostrarMsg('esqueci-msg', /rate|second|many|limit/i.test(error.message || '')
+                    ? 'Aguarde um pouco antes de pedir outro e-mail.' : 'Não foi possível enviar agora. Tente de novo em instantes.', 'error');
+                return;
+            }
+            // a resposta é a mesma exista a conta ou não (não revela quem tem cadastro)
+            mostrarMsg('esqueci-msg', 'Se este e-mail tiver uma conta, enviamos um link para criar uma nova senha. Confira também o spam; o link vale por pouco tempo.', 'success');
+            contagemBotao(botao, 'Enviar link', 60);
         }
 
         // ---------- Ranking geral de pontuação ecológica ----------
