@@ -79,8 +79,12 @@
     <script src="supabaseClient.js"></script>
     <script>
         const SENHA_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-        const HASH_INICIAL = window.location.hash || '';          // o link do e-mail traz o código depois do #
-        const veioDeRecuperacao = /type=recovery/.test(HASH_INICIAL);
+        const HASH_INICIAL = window.location.hash || '';
+        const SEARCH_INICIAL = window.location.search || '';
+        const params = new URLSearchParams(SEARCH_INICIAL);
+        
+        // Suporta tanto o formato PKCE (?code=...) quanto o antigo (#type=recovery)
+        const veioDeRecuperacao = params.has('code') || /type=recovery/.test(HASH_INICIAL);
         const $ = id => document.getElementById(id);
         let formularioAberto = false;
 
@@ -97,8 +101,10 @@
             dica.textContent = msg || (idCampo === 'nova-senha' ? 'Mínimo de 8 caracteres, com letras e números.' : '');
             dica.classList.toggle('error', !!msg);
         }
+
         const validarSenha = () => { const m = SENHA_RE.test($('nova-senha').value) ? '' : 'A senha precisa ter pelo menos 8 caracteres, com letras e números.'; marcar('nova-senha', m); return !m; };
         const validarConfirma = () => { const m = $('confirma-senha').value === $('nova-senha').value ? '' : 'As senhas não coincidem.'; marcar('confirma-senha', m); return !m; };
+
         $('nova-senha').addEventListener('input', () => { $('msg-erro').style.display = 'none'; if ($('nova-senha').dataset.t) validarSenha(); if ($('confirma-senha').dataset.t) validarConfirma(); });
         $('nova-senha').addEventListener('blur', () => { $('nova-senha').dataset.t = '1'; validarSenha(); });
         $('confirma-senha').addEventListener('input', () => { $('msg-erro').style.display = 'none'; if ($('confirma-senha').dataset.t) validarConfirma(); });
@@ -127,13 +133,25 @@
             setTimeout(() => { window.location.href = 'menu.html'; }, 2500);
         }
 
-        // ---- ao abrir: confere se o link é de recuperação e se ainda vale ----
-        supabaseClient.auth.onAuthStateChange(evento => { if (evento === 'PASSWORD_RECOVERY') mostrar('formulario'); });
+        // ---- Escuta alterações de autenticação ----
+        supabaseClient.auth.onAuthStateChange((evento) => { 
+            if (evento === 'PASSWORD_RECOVERY' || (evento === 'SIGNED_IN' && veioDeRecuperacao)) {
+                mostrar('formulario');
+            }
+        });
+
         (async () => {
-            if (/error(_code)?=/.test(HASH_INICIAL)) return mostrar('invalido');      // link expirado ou já usado
-            const { data: { session } } = await supabaseClient.auth.getSession();     // o Supabase lê o código do link aqui
-            if (veioDeRecuperacao && session) return mostrar('formulario');
-            setTimeout(() => { if (!formularioAberto) mostrar('invalido'); }, veioDeRecuperacao ? 2500 : 300);
+            if (/error(_code)?=/.test(HASH_INICIAL) || /error(_code)?=/.test(SEARCH_INICIAL)) {
+                return mostrar('invalido');
+            }
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (veioDeRecuperacao && session) {
+                return mostrar('formulario');
+            }
+            // Tempo estendido para permitir a troca do código PKCE pelo Supabase
+            setTimeout(() => { 
+                if (!formularioAberto) mostrar('invalido'); 
+            }, veioDeRecuperacao ? 4000 : 500);
         })();
     </script>
 </body>
