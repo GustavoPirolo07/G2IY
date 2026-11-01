@@ -359,22 +359,14 @@ async function atualizarMelhores() {
         }
 
         // VERIFICAÇÃO DE SESSÃO ATIVA (a sessão fica gerenciada pelo Supabase)
-        // VERIFICAÇÃO DE SESSÃO ATIVA
         window.addEventListener('DOMContentLoaded', async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
-            const search = window.location.search || '';
-            const hash = window.location.hash || '';
-
             if (session) {
                 mostrarMenu(session.user.user_metadata.nome_usuario || 'jogador');
-                if (/type=(signup|email)/.test(hash) || /code=/.test(search)) {
-                    mostrarMsg('menu-aviso', 'E-mail confirmado com sucesso! Sua conta está ativa.', 'success');
-                }
+                if (/type=(signup|email)/.test(HASH_INICIAL)) mostrarMsg('menu-aviso', 'E-mail confirmado com sucesso! Sua conta está ativa.', 'success');
             } else {
                 switchScreen('login-screen');
-                if (/error(_code)?=/.test(hash) || /error(_code)?=/.test(search)) {
-                    mostrarMsg('login-aviso', 'Este link expirou ou já foi usado. Entre com a sua conta; se precisar, peça um novo e-mail.', 'info');
-                }
+                if (/error(_code)?=/.test(HASH_INICIAL)) mostrarMsg('login-aviso', 'Este link expirou ou já foi usado. Entre com a sua conta; se precisar, peça um novo e-mail.', 'info');
             }
         });
 
