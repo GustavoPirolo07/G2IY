@@ -82,6 +82,7 @@
         .conta-secao + .conta-secao {border-top: 2px solid var(--card-bg); margin-top: 22px;}
         .conta-secao h3 {font-size: 1rem; color: var(--primary-color); margin-bottom: 12px;}
         .conta-linha {display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #c8e6c9; font-size: 0.92rem; color: #558b2f;}
+        .conta-explica {font-size: 0.85rem; color: #558b2f; line-height: 1.4; margin-bottom: 12px;}
         .conta-linha strong {color: var(--text-color); text-align: right; word-break: break-all;}
         /* Validação visual dos campos */
         .input-group input.invalid {border-color: var(--error-color); background: #fff5f5;}
@@ -309,6 +310,19 @@
                     <div id="conta-senha-msg" class="message"></div>
                 </form>
             </section>
+            <section class="conta-secao">
+                <h3>Meus dados protegidos</h3>
+                <p class="conta-explica">Baixe um arquivo com seus dados. O <b>e-mail vai criptografado</b> com uma chave secreta que só você conhece (criptografia simétrica).</p>
+                <form onsubmit="baixarDadosProtegidos(event)" novalidate>
+                    <div class="input-group">
+                        <label for="conta-chave-cripto">Chave secreta</label>
+                        <input type="password" id="conta-chave-cripto" placeholder="Escolha uma chave" autocomplete="off">
+                        <div class="field-hint" id="conta-chave-cripto-hint" data-padrao="Mínimo de 6 caracteres. Guarde-a: sem ela o arquivo não abre.">Mínimo de 6 caracteres. Guarde-a: sem ela o arquivo não abre.</div>
+                    </div>
+                    <button type="submit" id="conta-cripto-btn" class="btn-submit">Baixar dados criptografados</button>
+                    <div id="conta-cripto-msg" class="message"></div>
+                </form>
+            </section>
         </div>
     </aside>
 
@@ -316,6 +330,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="resultados.js"></script>
+    <script src="criptografiaSimples.js"></script>
     <script>
         // O link que chega por e-mail traz informações no endereço (depois do #). Guardamos antes de o Supabase apagá-las.
         const HASH_INICIAL = window.location.hash || '';
@@ -402,6 +417,7 @@ async function atualizarMelhores() {
             'conta-senha-atual':   v => v ? '' : 'Digite sua senha atual.',
             'conta-senha-nova':    v => SENHA_RE.test(v) ? '' : 'A senha precisa ter pelo menos 8 caracteres, com letras e números.',
             'esqueci-email': v => EMAIL_RE.test(v.trim()) ? '' : 'Digite um e-mail válido, como nome@email.com.',
+            'conta-chave-cripto': v => v.length >= 6 ? '' : 'A chave precisa ter pelo menos 6 caracteres.',
             'conta-senha-confirma': v => v === document.getElementById('conta-senha-nova').value ? '' : 'As senhas não coincidem.'
         };
 
@@ -440,7 +456,8 @@ async function atualizarMelhores() {
                 const avisoId = id.startsWith('login') ? 'login-error'
                     : id.startsWith('reg') ? 'reg-error'
                     : id === 'esqueci-email' ? 'esqueci-msg'
-                    : id === 'conta-novo-nome' ? 'conta-nome-msg' : 'conta-senha-msg';
+                    : id === 'conta-novo-nome' ? 'conta-nome-msg'
+                    : id === 'conta-chave-cripto' ? 'conta-cripto-msg' : 'conta-senha-msg';
                 document.getElementById(avisoId).style.display = 'none';
                 if (el.dataset.tocado) validarCampo(id);
                 else el.classList.remove('invalid');
@@ -668,9 +685,9 @@ async function atualizarMelhores() {
         }
 
         function resetarFormsConta() {
-            ['conta-novo-nome', 'conta-senha-atual', 'conta-senha-nova', 'conta-senha-confirma']
+            ['conta-novo-nome', 'conta-senha-atual', 'conta-senha-nova', 'conta-senha-confirma', 'conta-chave-cripto']
                 .forEach(id => { document.getElementById(id).value = ''; });
-            ['conta-nome-msg', 'conta-senha-msg'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+            ['conta-nome-msg', 'conta-senha-msg', 'conta-cripto-msg'].forEach(id => { document.getElementById(id).style.display = 'none'; });
             limparValidacao();
         }
 
@@ -684,6 +701,7 @@ async function atualizarMelhores() {
             contaUsuario = {
                 id: user.id,
                 email: user.email,
+                pontos: perfil ? perfil.pontuacao_ecologica : 0,
                 nome: (perfil && perfil.nome_usuario) || user.user_metadata.nome_usuario || ''
             };
             document.getElementById('conta-nome').textContent = contaUsuario.nome || '—';
@@ -711,6 +729,39 @@ async function atualizarMelhores() {
         }
 
         document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharConta(); });
+
+        // Botão "Baixar dados criptografados" da aba Minha conta.
+        // Monta um arquivo com o e-mail trancado pela chave (a cifra tá no criptografiaSimples.js).
+        // O formato é o mesmo do Python, então o descriptografar.py consegue abrir esse arquivo.
+        async function baixarDadosProtegidos(event) {
+            event.preventDefault();
+            const campo = document.getElementById('conta-chave-cripto');
+            document.getElementById('conta-cripto-msg').style.display = 'none';
+            campo.dataset.tocado = '1';
+            if (!validarCampo('conta-chave-cripto')) { campo.focus(); return; }
+            if (!contaUsuario) await carregarDadosConta();
+            if (!contaUsuario) { mostrarMsgConta('conta-cripto-msg', 'Sessão expirada. Entre novamente.', false); return; }
+
+            const chave = campo.value;
+            const usuario = (contaUsuario.nome || 'jogador').replace(/[;\r\n]/g, ' ');   // o ";" separa as colunas, então troca por espaço
+            const emailCifrado = cifrar(contaUsuario.email, chave);
+            const linhas = [
+                '#TESTE;' + cifrar(PALAVRA_TESTE, chave),                    // primeira linha: usada pra conferir a chave na hora de abrir
+                usuario + ';' + emailCifrado + ';' + contaUsuario.pontos     // usuario;email_criptografado;pontos
+            ];
+            const blob = new Blob([linhas.join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'ecoaventuras_dados_protegidos.txt';
+            document.body.appendChild(link); link.click(); link.remove();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+
+            campo.value = '';
+            delete campo.dataset.tocado;
+            marcarCampo('conta-chave-cripto', '');
+            campo.classList.remove('valid');
+            mostrarMsgConta('conta-cripto-msg', 'Arquivo gerado! E-mail criptografado: ' + emailCifrado.slice(0, 30) + '…  Para abrir, use o descriptografar.py com a mesma chave.', true);
+        }
 
         // Alterar nome de usuário (perfil no banco + dados da conta)
         async function salvarNome(event) {
