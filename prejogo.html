@@ -238,8 +238,8 @@ const JOGOS = {
         nome: 'Eco Caminhão', arquivo: 'ecoCaminhao.html', ranking: 'pontos',
         objetivo: 'Dirija o caminhão de lixo e recolha o lixo espalhado pelo gramado.',
         modos: [
-            { id: 'normal', nome: 'Normal', jogo: 'caminhao_normal', conclusoes: true, desc: 'A velocidade é sempre a mesma. Colete 60 lixos para zerar o jogo.' },
-            { id: 'hard', nome: 'Difícil', jogo: 'caminhao', conclusoes: false, desc: 'O caminhão acelera a cada lixo. Vá o mais longe que conseguir.' }
+            { id: 'normal', nome: 'Normal', jogo: 'caminhao_normal', metricas: 'caminhao', desc: 'A velocidade é sempre a mesma. Colete 60 lixos para zerar o jogo e ganhar um prestígio ⭐.' },
+            { id: 'hard', nome: 'Difícil', jogo: 'caminhao', metricas: 'caminhao', desc: 'O caminhão acelera a cada lixo. Vá o mais longe que conseguir.' }
         ],
         passos: [
             [ICO.setas, 'Use as <b>setas</b> ou os botões para virar o caminhão.'],
@@ -258,6 +258,7 @@ if (!jogo) { location.replace('menu.html'); }
 const $ = id => document.getElementById(id);
 function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
 let modoAtual = null;
+const TAM_INICIAL_CAMINHAO = 3;   // o caminhão começa com 3 de tamanho
 const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 if (jogo) {
@@ -314,8 +315,14 @@ function linhaRanking(l, tipo) {
         valor.appendChild(document.createTextNode(String(l.arvores)));
         if (l.tempo_total) valor.appendChild(criar('small', '', `tempo ${mmss(l.tempo_total)}`));
     } else {
-        valor.appendChild(document.createTextNode(`${l.melhor_pontuacao} pts`));
-        if (modoAtual && modoAtual.conclusoes && l.conclusoes > 0) valor.appendChild(criar('small', '', `${l.conclusoes} ${l.conclusoes === 1 ? 'conclusão' : 'conclusões'}`));
+        if (modoAtual && modoAtual.metricas === 'caminhao') {
+            // Eco Caminhão: "maior tamanho" (caminhão inicial de 3 + lixos coletados) e "prestígios" (vezes que zerou o jogo)
+            const prestigios = l.conclusoes || 0;
+            valor.appendChild(document.createTextNode(`Tamanho ${TAM_INICIAL_CAMINHAO + l.melhor_pontuacao}`));
+            valor.appendChild(criar('small', '', `⭐ ${prestigios} ${prestigios === 1 ? 'prestígio' : 'prestígios'}`));
+        } else {
+            valor.appendChild(document.createTextNode(`${l.melhor_pontuacao} pts`));
+        }
         if (tipo === 'pontos_tempo' && l.melhor_tempo_segundos) valor.appendChild(criar('small', '', `mais rápido: ${l.melhor_tempo_segundos}s`));
     }
     li.appendChild(valor);

@@ -472,13 +472,14 @@ function montarPopupFim() {
     card.appendChild(criar('h2', '', venceu ? 'Cidade limpa!' : 'Fim de jogo'));
     card.appendChild(criar('p', 'pf-msg', venceu ? (MODO === 'normal' ? `Meta cumprida: ${META_NORMAL} lixos coletados!` : 'Você coletou todo o lixo do gramado!') : S.motivo === 'parede' ? 'O caminhão bateu na borda do campo.' : 'O caminhão bateu nas próprias caçambas.'));
     if (recorde && S.pontos > 0) card.appendChild(criar('span', 'pf-recorde', 'Novo recorde!'));
+    if (venceu) { card.appendChild(document.createTextNode(' ')); card.appendChild(criar('span', 'pf-recorde', 'Novo prestígio! ⭐')); }
     const caixa = criar('div', 'pf-caixa');
     caixa.appendChild(criar('strong', '', String(S.pontos)));
     caixa.appendChild(criar('span', '', S.pontos === 1 ? 'lixo coletado' : 'lixos coletados'));
     card.appendChild(caixa);
-    card.appendChild(criar('p', 'pf-msg', MODO === 'normal'
-        ? `Recorde: ${melhor}  ·  Conclusões: ${conclusoes}`
-        : `Recorde: ${melhor}  ·  Nível alcançado: ${S.nivel}`));
+    // maior tamanho = caminhão inicial (3) + lixos do melhor recorde; prestígio = vezes em que o jogo foi zerado
+    card.appendChild(criar('p', 'pf-msg', `Maior tamanho: ${TAM_INICIAL + melhor}  ·  Prestígios: ${conclusoes}`));
+    if (MODO === 'hard') card.appendChild(criar('p', 'pf-msg', `Nível alcançado: ${S.nivel}`));
     const botoes = criar('div', 'pf-botoes');
     const btn = (t, c, fn) => { const b = criar('button', 'pf-btn ' + c, t); b.type = 'button'; b.onclick = fn; return b; };
     botoes.appendChild(btn('Jogar de novo', 'principal', iniciar));
