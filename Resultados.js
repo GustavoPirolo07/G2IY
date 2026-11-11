@@ -23,7 +23,7 @@ async function registrarResultado(jogo, pontos, tempoSegundos = null, concluiu =
 async function carregarMelhoresResultados() {
     const { data, error } = await supabaseClient
         .from('melhores_resultados')
-        .select('jogo, melhor_pontuacao, melhor_tempo_segundos, conclusoes');
+        .select('jogo, melhor_pontuacao, melhor_tempo_segundos');
     if (error) { console.error(error); return {}; }
     const mapa = {};
     data.forEach(r => { mapa[r.jogo] = r; });
