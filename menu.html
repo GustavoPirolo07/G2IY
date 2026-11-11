@@ -234,7 +234,7 @@
                 <a href="prejogo.html?jogo=reflorestar" class="game-card">
                     <div class="game-info">
                         <span class="game-title">🌳 Eco Reflorestar</span>
-                        <span class="game-desc">Deslize a semente e replante a floresta com o mínimo de jogadas</span>
+                        <span class="game-desc">Deslize a semente e replante a floresta em 50 fases</span>
                         <span class="game-best" id="best-reflorestar">🌳 Árvores conquistadas: — de 30</span>
                     </div>
                     <span class="game-icon">➔</span>
@@ -251,7 +251,14 @@
                     <div class="game-info">
                         <span class="game-title">🚛 Eco Caminhão</span>
                         <span class="game-desc">Recolha o lixo da cidade e aumente seu caminhão sem bater</span>
-                        <span class="game-best" id="best-caminhao">🏆 Melhor pontuação: —</span>
+                        <span class="game-best" id="best-caminhao">🏆 Normal: — · Difícil: —</span>
+                    </div>
+                    <span class="game-icon">➔</span>
+                </a>
+                <a href="sugestoes.html" class="game-card" style="border-style: dashed;">
+                    <div class="game-info">
+                        <span class="game-title">💬 Caixinha de sugestões</span>
+                        <span class="game-desc">Mande ideias, elogios ou avise de algum problema</span>
                     </div>
                     <span class="game-icon">➔</span>
                 </a>
@@ -310,6 +317,10 @@
                     <div id="conta-senha-msg" class="message"></div>
                 </form>
             </section>
+            <section class="conta-secao" id="conta-admin" hidden>
+                <h3>Administração</h3>
+                <a class="btn-submit" href="admin.html" style="display: block; text-decoration: none; text-align: center;">Abrir painel do administrador</a>
+            </section>
             <section class="conta-secao">
                 <h3>Meus dados protegidos</h3>
                 <p class="conta-explica">Baixe um arquivo com seus dados. O <b>e-mail vai criptografado</b> com uma chave secreta que só você conhece (criptografia simétrica).</p>
@@ -353,8 +364,12 @@ async function atualizarMelhores() {
             // Eco Reflorestar: soma das árvores (1 a 3 por fase) conquistadas
             let arvores = 0;
             REFLORESTAR_OTIMOS.forEach((otimo, i) => { const f = fases[i + 1]; if (f) arvores += f.estrelas; });
+            // Eco Caminhão: modo normal (com conclusões) e modo difícil
+            const cn = melhores.caminhao_normal, cd = melhores.caminhao;
+            document.getElementById('best-caminhao').textContent =
+                `🏆 Normal: ${cn ? cn.melhor_pontuacao : '—'}${cn && cn.conclusoes ? ' (' + cn.conclusoes + 'x zerado)' : ''} · Difícil: ${cd ? cd.melhor_pontuacao : '—'}`;
             document.getElementById('best-reflorestar').textContent = `🌳 Árvores conquistadas: ${arvores} de ${REFLORESTAR_OTIMOS.length * 3}`;
-            ['caca_palavras', 'adivinhacao', 'quiz', 'coleta_seletiva', 'caminhao'].forEach(jogo => {
+            ['caca_palavras', 'adivinhacao', 'quiz', 'coleta_seletiva'].forEach(jogo => {
                 const el = document.getElementById('best-' + jogo);
                 const r = melhores[jogo];
                 let texto = `🏆 Melhor pontuação: ${r ? r.melhor_pontuacao + ' pts' : '—'}`;
@@ -718,6 +733,7 @@ async function atualizarMelhores() {
             drawer.setAttribute('aria-hidden', 'false');
             document.getElementById('conta-fechar').focus();
             await carregarDadosConta();
+            ehAdmin().then(v => { document.getElementById('conta-admin').hidden = !v; });   // só aparece para quem é administrador
         }
 
         function fecharConta() {

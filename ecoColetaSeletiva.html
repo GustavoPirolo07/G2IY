@@ -276,13 +276,19 @@ const CORACAO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21 C5 
    ============================================================ */
 const VIDAS_INICIAIS = 3;
 const TEMPO_INICIAL = 4.2;   // segundos para o primeiro item cair
-const TEMPO_MINIMO = 1.2;    // limite da velocidade
-const FATOR_ACELERA = 0.955; // cada item fica ~4,5% mais rápido
+const TEMPO_MINIMO = 1.0;    // velocidade máxima: o item leva 1 segundo para cair e NUNCA fica mais rápido que isso
+const ITENS_ATE_VELOCIDADE_MAXIMA = 60;   // com 60 itens separados o jogo chega na velocidade máxima
 const MULT_SOLTAR = 4;       // velocidade ao apertar "soltar"
 const ITENS_POR_NIVEL = 5;
+const NIVEL_MAX = 1 + Math.ceil(ITENS_ATE_VELOCIDADE_MAXIMA / ITENS_POR_NIVEL);   // nível 13
 
-function duracaoQueda(n) { return Math.max(TEMPO_MINIMO, TEMPO_INICIAL * Math.pow(FATOR_ACELERA, n)); }
-function nivelDe(itens) { return 1 + Math.floor(itens / ITENS_POR_NIVEL); }
+// Quanto tempo o item leva para cair. A curva desacelera até a velocidade máxima e depois fica fixa:
+// só depende de quantos itens já passaram (nunca "reinicia", seja qual for a pontuação).
+function duracaoQueda(n) {
+    const restante = Math.max(0, 1 - n / ITENS_ATE_VELOCIDADE_MAXIMA);   // 1 no começo, 0 na velocidade máxima
+    return TEMPO_MINIMO + (TEMPO_INICIAL - TEMPO_MINIMO) * restante * restante;
+}
+function nivelDe(itens) { return Math.min(NIVEL_MAX, 1 + Math.floor(itens / ITENS_POR_NIVEL)); }
 
 /* ============================================================
    INTERFACE
@@ -327,7 +333,7 @@ function renderHud(pontuou) {
     const p = $('pontos');
     p.textContent = S.pontos;
     if (pontuou) { p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop'); }
-    $('nivel').textContent = `Nível ${S.nivel}`;
+    $('nivel').textContent = S.nivel >= NIVEL_MAX ? 'Nível máx.' : `Nível ${S.nivel}`;
 }
 
 function medir() { S.areaQueda = campo.clientHeight - lixeirasEl.offsetHeight; }
@@ -431,7 +437,7 @@ function aterrissar() {
     if (novoNivel > S.nivel && S.vidas > 0) {
         S.nivel = novoNivel;
         const a = $('aviso-nivel');
-        a.textContent = `Nível ${S.nivel}: mais rápido!`;
+        a.textContent = S.nivel >= NIVEL_MAX ? 'Velocidade máxima!' : `Nível ${S.nivel}: mais rápido!`;
         a.classList.remove('mostrar'); void a.offsetWidth; a.classList.add('mostrar');
     }
     renderHud(certo);
@@ -445,7 +451,7 @@ function aterrissar() {
 /* ---------- laço principal (usa o tempo do jogo, então a pausa congela tudo) ---------- */
 function laco(t) {
     if (!S.rodando) return;
-    const dt = Math.min(0.05, (t - S.ultimoT) / 1000 || 0);
+    const dt = Math.min(0.1, (t - S.ultimoT) / 1000 || 0);
     S.ultimoT = t;
     if (!S.pausado) {
         const it = S.item;

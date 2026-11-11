@@ -33,6 +33,11 @@
         .cat-total { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
         .cat-total svg { width: 22px; height: 22px; }
         .cat-legenda { margin: 6px 0 14px; font-size: 0.88rem; color: var(--suave); line-height: 1.4; }
+        .grupos { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+        .grupo-btn { padding: 6px 12px; border-radius: 999px; border: 2px solid var(--borda); background: #fff; color: var(--verde); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: 0.15s; font-family: inherit; }
+        .grupo-btn:hover { background: var(--cartao); }
+        .grupo-btn.ativo { background: var(--verde); border-color: var(--verde); color: #fff; }
+        .grupo-btn small { font-weight: 600; opacity: .8; margin-left: 4px; }
         .lista-fases { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
         .card-nivel { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 12px 10px 8px; background: var(--cartao); border: 2px solid var(--borda); border-radius: 14px; cursor: pointer; color: var(--verde); transition: transform 0.15s, background-color 0.15s; }
         .card-nivel:hover { background: #e3f2d5; transform: translateY(-2px); }
@@ -206,6 +211,7 @@
                 <div class="cat-total" aria-label="Árvores conquistadas"><span id="cat-icone"></span><span id="total-arvores">0 de 30</span></div>
             </div>
             <p class="cat-legenda">Termine cada fase com o mínimo de jogadas para ganhar as 3 árvores. Você pode voltar a qualquer fase para bater seu recorde.</p>
+            <div class="grupos" id="grupos-fases" role="group" aria-label="Grupos de fases"></div>
             <div class="lista-fases" id="lista-fases"></div>
         </section>
     </div>
@@ -325,7 +331,268 @@ const NIVEIS = [
               '...##.#',
               '......#',
               '.......',
-              '#..#...'] }
+              '#..#...'] },
+    { id: 11, nome: 'Horta', otimo: 9, arvores: ['copa', 'ipeRosa', 'arbusto'],
+      grade: ['#S....',
+              '....#.',
+              '......',
+              '......',
+              '.....#'] },
+    { id: 12, nome: 'Pomar', otimo: 21, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['....#.._',
+              '......#.',
+              '##..S...',
+              '.##.#...',
+              '....#.._'] },
+    { id: 13, nome: 'Manguezal', otimo: 23, arvores: ['pinheiro', 'pinheiro', 'copa', 'arbusto'],
+      grade: ['_...##.',
+              'S......',
+              '...#...',
+              '#.#...#',
+              '......#',
+              '.#.....',
+              '.##....'] },
+    { id: 14, nome: 'Restinga', otimo: 18, arvores: ['copa', 'ipeRosa', 'pinheiro', 'ipeAmarelo', 'arbusto'],
+      grade: ['_......_',
+              '#..#....',
+              '...S..#.',
+              '....#.##',
+              '.#.....#'] },
+    { id: 15, nome: 'Caatinga', otimo: 22, arvores: ['copa', 'ipeRosa', 'pinheiro', 'ipeAmarelo', 'arbusto'],
+      grade: ['...#...',
+              '.S.....',
+              '......#',
+              '#...#..',
+              '..#..#.'] },
+    { id: 16, nome: 'Pantanal', otimo: 14, arvores: ['pinheiro', 'pinheiro', 'copa', 'arbusto'],
+      grade: ['.#..#..',
+              '.......',
+              'S.#.#..',
+              '.......',
+              '..#...#'] },
+    { id: 17, nome: 'Pampa', otimo: 14, arvores: ['copa', 'copa', 'ipeRosa', 'pinheiro'],
+      grade: ['.#......',
+              '......#.',
+              '#....S..',
+              '#.##....',
+              '#.....#_'] },
+    { id: 18, nome: 'Chapada', otimo: 23, arvores: ['copa', 'ipeRosa', 'arbusto'],
+      grade: ['#.....#S',
+              '#.....#.',
+              '#....#..',
+              '##......',
+              '#.......',
+              '...##...',
+              '....#.._'] },
+    { id: 19, nome: 'Cachoeira', otimo: 18, arvores: ['copa', 'arbusto', 'ipeAmarelo'],
+      grade: ['...#..S',
+              '.......',
+              '.#.....',
+              '.#..#..',
+              '......#',
+              '..#....'] },
+    { id: 20, nome: 'Jardim botânico', otimo: 25, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['_..#..',
+              '....#.',
+              '...#..',
+              '##...#',
+              '.S....',
+              '....#.'] },
+    { id: 21, nome: 'Praça verde', otimo: 7, arvores: ['copa', 'ipeRosa', 'arbusto'],
+      grade: ['..S..',
+              '..##.',
+              '.....',
+              '#....'] },
+    { id: 22, nome: 'Mirante', otimo: 19, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['#....#S_',
+              '......._',
+              '....#..#',
+              '#.###...',
+              '.....#..',
+              '........',
+              '..#...##'] },
+    { id: 23, nome: 'Trilha do ipê', otimo: 10, arvores: ['copa', 'copa', 'ipeRosa', 'pinheiro'],
+      grade: ['.......',
+              '.......',
+              '....###',
+              '#......',
+              '##S....'] },
+    { id: 24, nome: 'Vereda', otimo: 11, arvores: ['pinheiro', 'pinheiro', 'copa', 'arbusto'],
+      grade: ['.#....',
+              '.#....',
+              'S....#',
+              '#.....'] },
+    { id: 25, nome: 'Igarapé', otimo: 17, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['_.....#_',
+              '_.###.._',
+              '.S.....#',
+              '...#....',
+              '.#.#....',
+              '........',
+              '......##'] },
+    { id: 26, nome: 'Várzea', otimo: 8, arvores: ['copa', 'copa', 'ipeRosa', 'pinheiro'],
+      grade: ['..#S.',
+              '..#..',
+              '.....',
+              '#....'] },
+    { id: 27, nome: 'Campina', otimo: 6, arvores: ['ipeAmarelo', 'ipeAmarelo', 'arbusto', 'copa'],
+      grade: ['...S.#',
+              '......',
+              '#.....'] },
+    { id: 28, nome: 'Cerradão', otimo: 15, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['_....._',
+              '.......',
+              '..#.##.',
+              '.#.S...',
+              '.......',
+              '##..#..'] },
+    { id: 29, nome: 'Mata de araucárias', otimo: 12, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['_.......',
+              '....S...',
+              '...#.###',
+              '.....###',
+              '.#....._'] },
+    { id: 30, nome: 'Ilha verde', otimo: 24, arvores: ['copa', 'copa', 'ipeRosa', 'pinheiro'],
+      grade: ['....#.._',
+              '..#...._',
+              '#.#....#',
+              '........',
+              '##.#....',
+              '....#S.#',
+              '........',
+              '.#....#_'] },
+    { id: 31, nome: 'Nascente do rio', otimo: 20, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['_...#.._',
+              '_.#.....',
+              '........',
+              '......S.',
+              '###.#..#',
+              '....#...',
+              '........',
+              '_##...##'] },
+    { id: 32, nome: 'Bosque', otimo: 7, arvores: ['copa', 'arbusto', 'ipeAmarelo'],
+      grade: ['.....',
+              '.....',
+              '####.',
+              '....S',
+              '.....'] },
+    { id: 33, nome: 'Clareira dourada', otimo: 13, arvores: ['copa', 'ipeRosa', 'arbusto'],
+      grade: ['..#...',
+              '..#.#.',
+              '......',
+              '.#.##.',
+              'S.....',
+              '_#....'] },
+    { id: 34, nome: 'Planalto', otimo: 11, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['......',
+              'S.....',
+              '#.....',
+              '.....#',
+              '.....#'] },
+    { id: 35, nome: 'Serra azul', otimo: 6, arvores: ['pinheiro', 'pinheiro', 'copa', 'arbusto'],
+      grade: ['#...',
+              '....',
+              '.S#.',
+              '....'] },
+    { id: 36, nome: 'Vale encantado', otimo: 20, arvores: ['copa', 'copa', 'ipeRosa', 'pinheiro'],
+      grade: ['.#...#.',
+              '...#...',
+              '....#..',
+              '......#',
+              '.S#....'] },
+    { id: 37, nome: 'Estuário', otimo: 9, arvores: ['arbusto', 'ipeAmarelo', 'copa'],
+      grade: ['.....',
+              '..S..',
+              '..#..'] },
+    { id: 38, nome: 'Lagoa', otimo: 8, arvores: ['ipeAmarelo', 'ipeAmarelo', 'arbusto', 'copa'],
+      grade: ['#....#',
+              '#.....',
+              '.S....',
+              '.....#'] },
+    { id: 39, nome: 'Parque urbano', otimo: 15, arvores: ['pinheiro', 'pinheiro', 'copa', 'arbusto'],
+      grade: ['##...._',
+              '.......',
+              'S#..#..',
+              '.##....',
+              '.#.....',
+              '.#.#...',
+              '......#'] },
+    { id: 40, nome: 'Floresta nacional', otimo: 22, arvores: ['copa', 'copa', 'ipeRosa', 'pinheiro'],
+      grade: ['_###...',
+              '_...#..',
+              '.#...S#',
+              '.#.....',
+              '.......',
+              '.......',
+              '#....#_'] },
+    { id: 41, nome: 'Lago azul', otimo: 17, arvores: ['copa', 'ipeRosa', 'arbusto'],
+      grade: ['.#...._',
+              '......#',
+              '......S',
+              '....#.#',
+              '#......',
+              '#......',
+              '#...##.'] },
+    { id: 42, nome: 'Morro verde', otimo: 16, arvores: ['copa', 'copa', 'ipeRosa', 'pinheiro'],
+      grade: ['...#._',
+              '...#..',
+              '#.....',
+              '..S.#.',
+              '.....#'] },
+    { id: 43, nome: 'Rio das Flores', otimo: 18, arvores: ['copa', 'ipeRosa', 'arbusto'],
+      grade: ['....##.',
+              '.#.....',
+              '.#.....',
+              '..#....',
+              '_..#...',
+              '_#..S._'] },
+    { id: 44, nome: 'Ilha das Garças', otimo: 12, arvores: ['copa', 'ipeRosa', 'pinheiro', 'ipeAmarelo', 'arbusto'],
+      grade: ['....#',
+              '#....',
+              '.....',
+              '.....',
+              '.#..S'] },
+    { id: 45, nome: 'Brejo', otimo: 16, arvores: ['copa', 'ipeRosa', 'pinheiro', 'ipeAmarelo', 'arbusto'],
+      grade: ['....._',
+              '.#....',
+              '..S#..',
+              '......',
+              '_...#.',
+              '_.#.##'] },
+    { id: 46, nome: 'Ipê da praça', otimo: 19, arvores: ['ipeAmarelo', 'ipeAmarelo', 'arbusto', 'copa'],
+      grade: ['_...##..',
+              '.....S..',
+              '........',
+              '#.#..#..',
+              '#......#',
+              '..#...#_',
+              '..##..#_'] },
+    { id: 47, nome: 'Cânion', otimo: 13, arvores: ['copa', 'ipeRosa', 'arbusto'],
+      grade: ['...#..',
+              '..S...',
+              '..#...'] },
+    { id: 48, nome: 'Encontro das águas', otimo: 13, arvores: ['ipeAmarelo', 'ipeAmarelo', 'arbusto', 'copa'],
+      grade: ['#.....#',
+              '......S',
+              '.......',
+              '....##.',
+              '#.#....',
+              '_.....#'] },
+    { id: 49, nome: 'Jardim suspenso', otimo: 10, arvores: ['ipeAmarelo', 'ipeAmarelo', 'arbusto', 'copa'],
+      grade: ['_.....',
+              '_.##.S',
+              '...#..',
+              '.#.#..',
+              '.#....',
+              '.....#'] },
+    { id: 50, nome: 'Reserva viva', otimo: 15, arvores: ['copa', 'ipeRosa', 'pinheiro', 'ipeAmarelo', 'arbusto'],
+      grade: ['.S.....',
+              '.##..#.',
+              '.....#.',
+              '..#....',
+              '.......',
+              '....#..',
+              '#.....#'] }
 ];
 
 function prepararNivel(def) {
@@ -473,7 +740,7 @@ const salto = semente.querySelector('.salto');
 const seta = semente.querySelector('.dica-seta');
 
 const niveisProntos = NIVEIS.map(prepararNivel);
-let nivel = null, indiceNivel = 0, tiles = [], telaAtual = 'catalogo';
+let nivel = null, indiceNivel = 0, tiles = [], telaAtual = 'catalogo', grupoCatalogo = null;
 let estado = null, timers = [], rotacao = 0, avisoTimer = null;
 
 /* ---------- progresso do jogador (vem do banco de dados) ---------- */
@@ -535,12 +802,25 @@ function mostrarCatalogo() {
     fecharPopup();
     const lista = el('lista-fases');
     lista.innerHTML = '';
-    let total = 0;
     const proxima = niveisProntos.findIndex(n => !progresso[n.id]);
+    const total = niveisProntos.reduce((soma, n) => soma + (progresso[n.id] ? progresso[n.id].estrelas : 0), 0);
+    const POR_GRUPO = 10, QTD_GRUPOS = Math.ceil(niveisProntos.length / POR_GRUPO);
+    if (grupoCatalogo === null) grupoCatalogo = Math.floor((proxima >= 0 ? proxima : 0) / POR_GRUPO);
+    // abas: 1-10, 11-20, ... (cada uma mostra as árvores já conquistadas nela)
+    const grupos = el('grupos-fases'); grupos.innerHTML = '';
+    for (let g = 0; g < QTD_GRUPOS; g++) {
+        const de = g * POR_GRUPO, ate = Math.min(niveisProntos.length, de + POR_GRUPO);
+        let arv = 0; for (let k = de; k < ate; k++) arv += progresso[niveisProntos[k].id] ? progresso[niveisProntos[k].id].estrelas : 0;
+        const b = criar('button', 'grupo-btn' + (g === grupoCatalogo ? ' ativo' : ''));
+        b.type = 'button'; b.appendChild(document.createTextNode(`${de + 1}–${ate}`)); b.appendChild(criar('small', '', `${arv}/${(ate - de) * 3}`));
+        b.setAttribute('aria-pressed', g === grupoCatalogo);
+        b.onclick = () => { grupoCatalogo = g; mostrarCatalogo(); };
+        grupos.appendChild(b);
+    }
     niveisProntos.forEach((n, i) => {
+        if (Math.floor(i / POR_GRUPO) !== grupoCatalogo) return;
         const reg = progresso[n.id];
         const e = reg ? reg.estrelas : 0;
-        total += e;
         const card = criar('button', 'card-nivel' + (i === proxima ? ' proxima' : ''));
         card.type = 'button';
         card.setAttribute('aria-label', `Fase ${n.id}, ${n.nome}. Mínimo de ${n.otimo} jogadas. ` + (reg ? (reg.melhor != null ? `Seu melhor: ${reg.melhor} jogadas, ${e} de 3 árvores.` : `Concluída com dica, ${e} de 3 árvores.`) : 'Ainda não jogada.'));
@@ -573,6 +853,7 @@ function carregarNivel(i) {
     limparTimers();
     fecharPopup();
     indiceNivel = i;
+    grupoCatalogo = Math.floor(i / 10);
     nivel = niveisProntos[i];
     const chaveInicio = nivel.inicio.join(',');
     estado = { r: nivel.inicio[0], c: nivel.inicio[1], plantados: new Set([chaveInicio]), jogadas: 0, historico: [], animando: false, pendente: null, venceu: false, t0: performance.now() };

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoAventuras - Painel do administrador</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
+        :root { --verde: #2e7d32; --verde-escuro: #1b5e20; --fundo: #e8f5e9; --cartao: #f1f8e9; --borda: #81c784; --suave: #558b2f; --erro: #d32f2f; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 12px; min-height: 100vh; background: var(--fundo); color: var(--verde); font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+        .app { max-width: 860px; margin: 0 auto; }
+        :focus-visible { outline: 3px solid var(--verde); outline-offset: 2px; }
+        button, select { font-family: inherit; }
+        [hidden] { display: none !important; }
+        .voltar { display: inline-block; text-decoration: none; color: var(--verde); font-weight: 700; font-size: 0.9rem; background: var(--cartao); border: 2px solid var(--borda); border-radius: 999px; padding: 6px 14px; }
+        h1 { margin: 14px 0 4px; font-size: 1.6rem; }
+        .sub { margin: 0 0 14px; color: var(--suave); font-size: 0.92rem; }
+        .cartao { background: #fff; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,.08); padding: 18px; margin-bottom: 14px; }
+        .negado { text-align: center; padding: 30px 18px; }
+        .negado .emoji { font-size: 3rem; }
+        .contadores { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+        .contador { flex: 1 1 120px; background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 6px 16px rgba(0,0,0,.06); }
+        .contador b { display: block; font-size: 1.7rem; line-height: 1.1; }
+        .contador span { font-size: 0.8rem; color: var(--suave); }
+        .filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+        .filtros select { padding: 9px 10px; border: 2px solid #a5d6a7; border-radius: 10px; background: #fff; color: #1b3d1c; font-size: 0.92rem; }
+        .btn { padding: 9px 14px; border-radius: 10px; border: 2px solid var(--borda); background: #fff; color: var(--verde); font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+        .btn:hover { background: var(--cartao); }
+        .btn.principal { background: var(--verde); color: #fff; border-color: var(--verde); }
+        .btn.perigo { color: var(--erro); border-color: #ef9a9a; }
+        .btn.perigo.confirmar { background: var(--erro); color: #fff; border-color: var(--erro); }
+        .lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+        .sug { padding: 14px; border-radius: 14px; background: #f7faf3; border: 2px solid #e3efd6; }
+        .sug.nova { border-color: var(--verde); background: #fff; box-shadow: 0 0 0 3px rgba(46,125,50,.12); }
+        .sug .cab { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; margin-bottom: 6px; }
+        .sug .quem { font-weight: 800; color: #2f4f2f; }
+        .sug .email { font-size: 0.85rem; color: var(--suave); word-break: break-all; }
+        .sug .data { font-size: 0.78rem; color: var(--suave); }
+        .etiquetas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+        .tag { font-size: 0.72rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: #e3efd6; color: var(--suave); }
+        .tag.bug { background: #ffebee; color: var(--erro); }
+        .tag.nova { background: var(--verde); color: #fff; }
+        .sug .msg { font-size: 0.97rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; color: #213c22; margin-bottom: 10px; }
+        .acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+        .vazio { text-align: center; color: var(--suave); padding: 24px 8px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <a class="voltar" href="menu.html">‹ Menu</a>
+
+    <section class="cartao negado" id="negado" hidden>
+        <div class="emoji" aria-hidden="true">🔒</div>
+        <h1>Acesso restrito</h1>
+        <p class="sub">Esta área é só para a equipe administradora do EcoAventuras.</p>
+    </section>
+
+    <main id="painel" hidden>
+        <h1>Painel do administrador</h1>
+        <p class="sub">Caixinha de sugestões: só você enxerga o nome e o e-mail de quem enviou.</p>
+
+        <div class="contadores">
+            <div class="contador"><b id="c-total">0</b><span>mensagens</span></div>
+            <div class="contador"><b id="c-novas">0</b><span>não lidas</span></div>
+            <div class="contador"><b id="c-bugs">0</b><span>problemas relatados</span></div>
+        </div>
+
+        <div class="cartao">
+            <div class="filtros">
+                <select id="f-estado" aria-label="Filtrar por leitura">
+                    <option value="todas">Todas</option>
+                    <option value="novas">Só não lidas</option>
+                </select>
+                <select id="f-categoria" aria-label="Filtrar por categoria">
+                    <option value="">Todas as categorias</option>
+                    <option value="sugestao">💡 Sugestões</option>
+                    <option value="bug">🐞 Problemas</option>
+                    <option value="elogio">💚 Elogios</option>
+                    <option value="outro">💬 Outros</option>
+                </select>
+                <select id="f-jogo" aria-label="Filtrar por jogo">
+                    <option value="">Todos os jogos</option>
+                    <option value="caca_palavras">Eco Caça-Palavras</option>
+                    <option value="adivinhacao">Eco Adivinhação</option>
+                    <option value="quiz">Eco Quiz Educativo</option>
+                    <option value="reflorestar">Eco Reflorestar</option>
+                    <option value="coleta_seletiva">Eco Coleta Seletiva</option>
+                    <option value="caminhao">Eco Caminhão</option>
+                    <option value="site">O site em geral</option>
+                </select>
+                <button type="button" class="btn" id="btn-atualizar">Atualizar</button>
+            </div>
+            <ul class="lista" id="lista"></ul>
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="supabaseClient.js"></script>
+<script src="protegerPagina.js"></script>
+<script src="resultados.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const ROTULO_CATEGORIA = { sugestao: '💡 Sugestão', bug: '🐞 Problema', elogio: '💚 Elogio', outro: '💬 Outro' };
+const ROTULO_JOGO = { caca_palavras: 'Eco Caça-Palavras', adivinhacao: 'Eco Adivinhação', quiz: 'Eco Quiz Educativo', reflorestar: 'Eco Reflorestar',
+                      coleta_seletiva: 'Eco Coleta Seletiva', caminhao: 'Eco Caminhão', site: 'O site em geral' };
+let todas = [];
+
+function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
+
+function desenhar() {
+    $('c-total').textContent = todas.length;
+    $('c-novas').textContent = todas.filter(s => !s.lida).length;
+    $('c-bugs').textContent = todas.filter(s => s.categoria === 'bug').length;
+
+    const soNovas = $('f-estado').value === 'novas', cat = $('f-categoria').value, jogo = $('f-jogo').value;
+    const lista = todas.filter(s => (!soNovas || !s.lida) && (!cat || s.categoria === cat) && (!jogo || s.jogo === jogo));
+    const ul = $('lista'); ul.innerHTML = '';
+    if (!lista.length) { ul.appendChild(criar('li', 'vazio', todas.length ? 'Nenhuma mensagem com esses filtros.' : 'Ainda não chegou nenhuma mensagem.')); return; }
+
+    lista.forEach(s => {
+        const li = criar('li', 'sug' + (s.lida ? '' : ' nova'));
+        const cab = criar('div', 'cab');
+        const quem = criar('div');
+        quem.appendChild(criar('div', 'quem', s.nome_usuario || 'Jogador'));
+        quem.appendChild(criar('div', 'email', s.email || '(conta apagada)'));
+        cab.appendChild(quem);
+        cab.appendChild(criar('div', 'data', new Date(s.criado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })));
+        li.appendChild(cab);
+
+        const tags = criar('div', 'etiquetas');
+        if (!s.lida) tags.appendChild(criar('span', 'tag nova', 'Nova'));
+        tags.appendChild(criar('span', 'tag' + (s.categoria === 'bug' ? ' bug' : ''), ROTULO_CATEGORIA[s.categoria] || s.categoria));
+        if (s.jogo) tags.appendChild(criar('span', 'tag', ROTULO_JOGO[s.jogo] || s.jogo));
+        li.appendChild(tags);
+        li.appendChild(criar('div', 'msg', s.mensagem));
+
+        const acoes = criar('div', 'acoes');
+        const bLida = criar('button', 'btn' + (s.lida ? '' : ' principal'), s.lida ? 'Marcar como não lida' : 'Marcar como lida');
+        bLida.type = 'button';
+        bLida.onclick = async () => { bLida.disabled = true; if (await marcarSugestao(s.id, !s.lida)) { s.lida = !s.lida; desenhar(); } else bLida.disabled = false; };
+        const bApagar = criar('button', 'btn perigo', 'Apagar');
+        bApagar.type = 'button';
+        let pronto = false, timer = null;
+        bApagar.onclick = async () => {      // dois toques: o primeiro pede confirmação
+            if (!pronto) { pronto = true; bApagar.textContent = 'Tem certeza? Toque de novo'; bApagar.classList.add('confirmar'); timer = setTimeout(() => { pronto = false; bApagar.textContent = 'Apagar'; bApagar.classList.remove('confirmar'); }, 3500); return; }
+            clearTimeout(timer); bApagar.disabled = true;
+            if (await apagarSugestao(s.id)) { todas = todas.filter(x => x.id !== s.id); desenhar(); } else { bApagar.disabled = false; }
+        };
+        acoes.append(bLida, bApagar);
+        li.appendChild(acoes);
+        ul.appendChild(li);
+    });
+}
+
+async function carregar() {
+    const dados = await listarSugestoesAdmin(false);
+    if (dados === null) { $('lista').innerHTML = ''; $('lista').appendChild(criar('li', 'vazio', 'Não foi possível carregar agora. Tente atualizar.')); return; }
+    todas = dados; desenhar();
+}
+
+['f-estado', 'f-categoria', 'f-jogo'].forEach(id => $(id).addEventListener('change', desenhar));
+$('btn-atualizar').onclick = carregar;
+
+window.paginaLiberada.then(async ok => {
+    if (!ok) return;
+    if (await ehAdmin()) { $('painel').hidden = false; carregar(); }   // a checagem de verdade é feita no banco; aqui só decide o que mostrar
+    else $('negado').hidden = false;
+});
+</script>
+</body>
+</html>

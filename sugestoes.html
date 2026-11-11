@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoAventuras - Caixinha de sugestões</title>
+    <style>
+        body { visibility: hidden; } /* só aparece após confirmar a sessão (protegerPagina.js) */
+        :root { --verde: #2e7d32; --verde-escuro: #1b5e20; --fundo: #e8f5e9; --cartao: #f1f8e9; --borda: #81c784; --suave: #558b2f; --erro: #d32f2f; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 12px; min-height: 100vh; background: var(--fundo); color: var(--verde); font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+        .app { max-width: 560px; margin: 0 auto; }
+        :focus-visible { outline: 3px solid var(--verde); outline-offset: 2px; }
+        button, select, textarea, input { font-family: inherit; }
+        .voltar { display: inline-block; text-decoration: none; color: var(--verde); font-weight: 700; font-size: 0.9rem; background: var(--cartao); border: 2px solid var(--borda); border-radius: 999px; padding: 6px 14px; }
+        .voltar:hover { background: #c8e6c9; }
+
+        .banner { margin: 14px 0 14px; padding: 22px 20px; border-radius: 18px; color: #fff; text-align: center; background: linear-gradient(135deg, #2e7d32 0%, #66bb6a 60%, #9ccc65 100%); box-shadow: 0 10px 25px rgba(46,125,50,.25); }
+        .banner .emoji { font-size: 2.6rem; line-height: 1; }
+        .banner h1 { margin: 6px 0 4px; font-size: 1.6rem; }
+        .banner p { margin: 0; font-size: 0.95rem; opacity: .95; line-height: 1.35; }
+
+        .cartao { background: #fff; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,.08); padding: 18px; margin-bottom: 14px; }
+        h2 { margin: 0 0 12px; font-size: 1.1rem; }
+        fieldset { border: none; margin: 0 0 14px; padding: 0; }
+        legend, label.rotulo { display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; padding: 0; }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip input { position: absolute; opacity: 0; pointer-events: none; }
+        .chip span { display: inline-block; padding: 8px 14px; border: 2px solid var(--borda); border-radius: 999px; background: #fff; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: .15s; }
+        .chip input:checked + span { background: var(--verde); border-color: var(--verde); color: #fff; }
+        .chip input:focus-visible + span { outline: 3px solid var(--verde); outline-offset: 2px; }
+        select, textarea { width: 100%; padding: 12px; border: 2px solid #a5d6a7; border-radius: 10px; font-size: 1rem; background: #fafafa; color: #1b3d1c; outline: none; }
+        select:focus, textarea:focus { border-color: var(--verde); background: #fff; }
+        textarea { resize: vertical; min-height: 120px; line-height: 1.4; }
+        textarea.invalido { border-color: var(--erro); background: #fff5f5; }
+        .linha-contador { display: flex; justify-content: space-between; gap: 10px; margin-top: 5px; font-size: 0.8rem; color: var(--suave); }
+        .linha-contador .erro-campo { color: var(--erro); font-weight: 600; }
+        .privacidade { margin: 14px 0; padding: 10px 12px; border-radius: 10px; background: var(--cartao); border: 2px dashed var(--borda); font-size: 0.82rem; line-height: 1.4; color: #3f6b1c; }
+        .botao { display: block; width: 100%; padding: 14px; font-size: 1.1rem; font-weight: 800; color: #fff; background: var(--verde); border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 5px 0 var(--verde-escuro); transition: .1s; text-align: center; text-decoration: none; }
+        .botao:hover { background: #388e3c; }
+        .botao:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--verde-escuro); }
+        .botao:disabled { opacity: .6; cursor: wait; }
+        .botao.sec { background: #fff; color: var(--verde); border: 2px solid var(--borda); box-shadow: none; margin-top: 10px; }
+        .aviso { display: none; margin-top: 12px; padding: 9px 12px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; }
+        .aviso.erro { display: block; color: var(--erro); background: #ffebee; }
+
+        #obrigado { text-align: center; padding: 28px 18px; }
+        #obrigado .emoji { font-size: 3rem; }
+        #obrigado h2 { font-size: 1.4rem; margin: 8px 0 6px; }
+        #obrigado p { color: var(--suave); line-height: 1.4; margin: 0 0 16px; }
+
+        .lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+        .item { padding: 10px 12px; border-radius: 12px; background: #f7faf3; border: 2px solid #e3efd6; }
+        .item .topo { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 0.78rem; color: var(--suave); margin-bottom: 4px; }
+        .item .cat { font-weight: 700; }
+        .item .texto { font-size: 0.92rem; line-height: 1.4; color: #2f4f2f; white-space: pre-wrap; word-break: break-word; }
+        .selo { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #e3efd6; color: var(--suave); }
+        .selo.lida { background: var(--verde); color: #fff; }
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <a class="voltar" href="menu.html">‹ Voltar</a>
+
+    <header class="banner">
+        <div class="emoji" aria-hidden="true">💬</div>
+        <h1>Caixinha de sugestões</h1>
+        <p>Conta pra gente: o que você quer ver no EcoAventuras? Ideias, elogios e problemas são todos bem-vindos!</p>
+    </header>
+
+    <main class="cartao" id="area-form">
+        <form id="form" novalidate>
+            <fieldset>
+                <legend>Sobre o que é?</legend>
+                <div class="chips">
+                    <label class="chip"><input type="radio" name="categoria" value="sugestao" checked><span>💡 Sugestão</span></label>
+                    <label class="chip"><input type="radio" name="categoria" value="bug"><span>🐞 Problema</span></label>
+                    <label class="chip"><input type="radio" name="categoria" value="elogio"><span>💚 Elogio</span></label>
+                    <label class="chip"><input type="radio" name="categoria" value="outro"><span>💬 Outro</span></label>
+                </div>
+            </fieldset>
+
+            <div style="margin-bottom: 14px;">
+                <label class="rotulo" for="jogo">Sobre qual jogo? (opcional)</label>
+                <select id="jogo">
+                    <option value="">Geral / não é de um jogo</option>
+                    <option value="caca_palavras">Eco Caça-Palavras</option>
+                    <option value="adivinhacao">Eco Adivinhação</option>
+                    <option value="quiz">Eco Quiz Educativo</option>
+                    <option value="reflorestar">Eco Reflorestar</option>
+                    <option value="coleta_seletiva">Eco Coleta Seletiva</option>
+                    <option value="caminhao">Eco Caminhão</option>
+                    <option value="site">O site em geral</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="rotulo" for="mensagem">Sua mensagem</label>
+                <textarea id="mensagem" maxlength="500" placeholder="Escreva aqui a sua ideia, elogio ou o problema que você encontrou…"></textarea>
+                <div class="linha-contador"><span class="erro-campo" id="erro-msg"></span><span><span id="contador">0</span>/500</span></div>
+            </div>
+
+            <p class="privacidade">🔒 <b>Quem vê isso?</b> Só a equipe do EcoAventuras. Junto com a sua mensagem, a equipe vê o seu <b>nome de usuário e o e-mail da sua conta</b>, para poder te responder se precisar. Mais ninguém vê.</p>
+
+            <button type="submit" class="botao" id="btn-enviar">Enviar para a equipe</button>
+            <div class="aviso erro" id="erro-envio" role="alert"></div>
+        </form>
+    </main>
+
+    <section class="cartao" id="obrigado" hidden>
+        <div class="emoji" aria-hidden="true">🌱</div>
+        <h2>Mensagem enviada!</h2>
+        <p>Obrigado por ajudar a deixar o EcoAventuras melhor. A equipe vai ler com carinho.</p>
+        <button type="button" class="botao" id="btn-outra">Enviar outra mensagem</button>
+        <a class="botao sec" href="menu.html">Voltar ao menu</a>
+    </section>
+
+    <section class="cartao" id="minhas" hidden>
+        <h2>Minhas mensagens</h2>
+        <ul class="lista" id="lista"></ul>
+    </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="supabaseClient.js"></script>
+<script src="protegerPagina.js"></script>
+<script src="resultados.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const ROTULO_CATEGORIA = { sugestao: '💡 Sugestão', bug: '🐞 Problema', elogio: '💚 Elogio', outro: '💬 Outro' };
+const ROTULO_JOGO = { caca_palavras: 'Eco Caça-Palavras', adivinhacao: 'Eco Adivinhação', quiz: 'Eco Quiz Educativo', reflorestar: 'Eco Reflorestar',
+                      coleta_seletiva: 'Eco Coleta Seletiva', caminhao: 'Eco Caminhão', site: 'O site em geral' };
+
+$('mensagem').addEventListener('input', () => {
+    $('contador').textContent = $('mensagem').value.length;
+    $('erro-msg').textContent = ''; $('mensagem').classList.remove('invalido'); $('erro-envio').style.display = 'none';
+});
+
+$('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const mensagem = $('mensagem').value.trim();
+    if (mensagem.length < 5) {
+        $('erro-msg').textContent = 'Escreva pelo menos 5 caracteres.';
+        $('mensagem').classList.add('invalido'); $('mensagem').focus();
+        return;
+    }
+    const categoria = document.querySelector('input[name="categoria"]:checked').value;
+    const jogo = $('jogo').value || null;
+    $('btn-enviar').disabled = true;
+    const r = await enviarSugestao(categoria, mensagem, jogo);
+    $('btn-enviar').disabled = false;
+    if (!r.ok) {
+        const el = $('erro-envio');
+        el.textContent = r.limite ? 'Você já enviou 5 mensagens nas últimas 24 horas. Volte amanhã para mandar mais!'
+                                  : 'Não foi possível enviar agora. Tente de novo em instantes.';
+        el.style.display = 'block';
+        return;
+    }
+    $('area-form').hidden = true; $('obrigado').hidden = false;
+    window.scrollTo(0, 0);
+    mostrarMinhas();
+});
+
+$('btn-outra').onclick = () => {
+    $('mensagem').value = ''; $('contador').textContent = '0'; $('jogo').value = '';
+    document.querySelector('input[name="categoria"][value="sugestao"]').checked = true;
+    $('obrigado').hidden = true; $('area-form').hidden = false; $('mensagem').focus();
+};
+
+async function mostrarMinhas() {
+    const dados = await carregarMinhasSugestoes(10);
+    if (!dados || !dados.length) { $('minhas').hidden = true; return; }
+    const lista = $('lista'); lista.innerHTML = '';
+    dados.forEach(s => {
+        const li = document.createElement('li'); li.className = 'item';
+        const topo = document.createElement('div'); topo.className = 'topo';
+        const cat = document.createElement('span'); cat.className = 'cat';
+        cat.textContent = (ROTULO_CATEGORIA[s.categoria] || s.categoria) + (s.jogo ? ' · ' + (ROTULO_JOGO[s.jogo] || s.jogo) : '');
+        const selo = document.createElement('span'); selo.className = 'selo' + (s.lida ? ' lida' : ''); selo.textContent = s.lida ? 'Lida pela equipe' : 'Recebida';
+        topo.append(cat, selo);
+        const texto = document.createElement('div'); texto.className = 'texto'; texto.textContent = s.mensagem;
+        const data = document.createElement('div'); data.className = 'topo'; data.style.margin = '6px 0 0';
+        data.textContent = new Date(s.criado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+        li.append(topo, texto, data);
+        lista.appendChild(li);
+    });
+    $('minhas').hidden = false;
+}
+window.paginaLiberada.then(ok => { if (ok) mostrarMinhas(); });
+</script>
+</body>
+</html>

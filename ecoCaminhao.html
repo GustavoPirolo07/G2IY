@@ -109,7 +109,7 @@
     <section class="jogo">
         <div class="hud" id="hud">
             <div class="hud-bloco"><span>Lixo coletado</span><b id="pontos">0</b></div>
-            <div class="hud-bloco centro"><span>Velocidade</span><b id="nivel">Nível 1</b></div>
+            <div class="hud-bloco centro"><span id="rotulo-modo">Velocidade</span><b id="nivel">Nível 1</b></div>
             <div class="hud-bloco direita"><span>Recorde</span><b id="recorde">0</b></div>
             <button type="button" class="btn-pausa" id="btn-pausa" aria-label="Pausar o jogo">
                 <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.6" height="12" rx="1" fill="currentColor"/><rect x="9.4" y="2" width="3.6" height="12" rx="1" fill="currentColor"/></svg>
@@ -185,7 +185,16 @@ IMG.reciclar = imagemDeSvg(simboloReciclagem('#ffffff'), 48);
 const TAM_INICIAL = 3;                       // caminhão + 2 caçambas
 const ITENS_POR_NIVEL = 4;
 const nivelDe = p => 1 + Math.floor(p / ITENS_POR_NIVEL);
-const intervaloDe = nivel => Math.max(70, 170 - (nivel - 1) * 10); // ms entre movimentos
+const intervaloDe = nivel => Math.max(70, 170 - (nivel - 1) * 10); // ms entre movimentos (modo difícil: acelera a cada 4 lixos)
+
+// O modo vem da tela de pré-jogo (?modo=normal ou ?modo=hard)
+//   normal: velocidade sempre igual; o objetivo é coletar META_NORMAL lixos (zerar o jogo)
+//   hard:   o caminhão acelera a cada lixo; vale a maior pontuação
+const MODO = new URLSearchParams(window.location.search).get('modo') === 'hard' ? 'hard' : 'normal';
+const JOGO_ID = MODO === 'normal' ? 'caminhao_normal' : 'caminhao';   // nome usado no banco de dados
+const META_NORMAL = 60;
+const INTERVALO_NORMAL = 140;   // ms entre movimentos no modo normal (fixo)
+const intervaloAtual = () => (MODO === 'normal' ? INTERVALO_NORMAL : intervaloDe(S.nivel));
 
 /* ============================================================
    ESTADO
@@ -194,9 +203,9 @@ const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
 const REDUZIR = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const S = { rodando: false, pausado: false, morrendo: 0, motivo: '', dir: DIRS.R, fila: [], corpo: [], lixo: null, pontos: 0, nivel: 1, acum: 0, ultimoT: 0, raf: 0, efeitos: [], tempo: 0, angCab: 0 };
-let cs = 30, DPR = 1, fundo = null, melhor = 0;
+let cs = 30, DPR = 1, fundo = null, melhor = 0, conclusoes = 0;
 // recorde do jogador: vem do banco de dados (tabela melhores_resultados)
-window.paginaLiberada.then(ok => { if (ok) carregarMelhoresResultados().then(m => { melhor = (m.caminhao && m.caminhao.melhor_pontuacao) || 0; atualizarHud(false); }); });
+window.paginaLiberada.then(ok => { if (ok) carregarMelhoresResultados().then(m => { const r = m[JOGO_ID] || {}; melhor = r.melhor_pontuacao || 0; conclusoes = r.conclusoes || 0; atualizarHud(false); }); });
 
 function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
 
@@ -214,7 +223,7 @@ function redimensionar() {
     tela.style.setProperty('--ch', cs * ROWS + 'px');
     cv.width = Math.round(cs * COLS * DPR); cv.height = Math.round(cs * ROWS * DPR);
     construirFundo();
-    desenhar(S.acum / intervaloDe(S.nivel));
+    desenhar(S.acum / intervaloAtual());
 }
 
 function construirFundo() {
@@ -343,9 +352,10 @@ function reiniciar() {
 }
 
 function atualizarHud(pontuou) {
-    const p = $('pontos'); p.textContent = S.pontos;
+    const p = $('pontos'); p.textContent = MODO === 'normal' ? `${S.pontos}/${META_NORMAL}` : S.pontos;
     if (pontuou && !REDUZIR) { p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop'); }
-    $('nivel').textContent = `Nível ${S.nivel}`;
+    $('rotulo-modo').textContent = MODO === 'normal' ? 'Modo' : 'Velocidade';
+    $('nivel').textContent = MODO === 'normal' ? 'Normal' : `Nível ${S.nivel}`;
     $('recorde').textContent = Math.max(melhor, S.pontos);
 }
 
@@ -373,11 +383,10 @@ function tick() {
         S.corpo.push({ x: cauda.x, y: cauda.y, px: cauda.x, py: cauda.y, cor: COR_TIPO[S.lixo.tipo] });
         S.pontos++;
         S.efeitos.push({ x: nx, y: ny, t: 0 });
-        const novo = nivelDe(S.pontos);
-        S.nivel = novo;
+        if (MODO !== 'normal') S.nivel = nivelDe(S.pontos);   // no modo normal a velocidade nunca muda
         S.lixo = novoLixo();
         atualizarHud(true);
-        if (!S.lixo) { S.rodando = false; S.motivo = 'vitoria'; S.morrendo = 0.01; }
+        if (!S.lixo || (MODO === 'normal' && S.pontos >= META_NORMAL)) { S.rodando = false; S.motivo = 'vitoria'; S.morrendo = 0.01; }   // meta cumprida: jogo zerado
     }
 }
 
@@ -389,14 +398,14 @@ function laco(t) {
         S.efeitos = S.efeitos.filter(e => e.t < 0.8);
         if (S.rodando) {
             S.acum += dt * 1000;
-            const iv = intervaloDe(S.nivel);
+            const iv = intervaloAtual();
             while (S.acum >= iv && S.rodando) { S.acum -= iv; tick(); }
         } else if (S.morrendo > 0) {
             S.morrendo -= dt;
             if (S.morrendo <= 0) { S.morrendo = 0; abrirFim(); S.raf = 0; desenhar(1); return; }
         }
     }
-    desenhar(S.rodando ? Math.min(1, S.acum / intervaloDe(S.nivel)) : 1);
+    desenhar(S.rodando ? Math.min(1, S.acum / intervaloAtual()) : 1);
     S.raf = requestAnimationFrame(laco);
 }
 
@@ -447,7 +456,7 @@ function iniciar() {
 
 function abrirFim() {
     // grava no banco e espera a confirmação (no máximo 2,5 s) para o menu já mostrar o recorde atualizado
-    const registrar = S.pontos > 0 ? registrarResultado('caminhao', Math.min(S.pontos, 200)) : Promise.resolve();
+    const registrar = S.pontos > 0 ? registrarResultado(JOGO_ID, Math.min(S.pontos, 200), null, S.motivo === 'vitoria') : Promise.resolve();
     Promise.race([registrar, new Promise(r => setTimeout(r, 2500))]).then(montarPopupFim);
 }
 
@@ -456,20 +465,24 @@ function montarPopupFim() {
     if (recorde) melhor = S.pontos;
     atualizarHud(false);
     const venceu = S.motivo === 'vitoria';
+    if (venceu) conclusoes++;
     const overlay = criar('div'); overlay.id = 'popup-jogo';
     const card = criar('div', 'pf-card'); card.tabIndex = -1; card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
     card.appendChild(criar('div', 'pf-emoji', venceu ? '🏆' : '🚛'));
     card.appendChild(criar('h2', '', venceu ? 'Cidade limpa!' : 'Fim de jogo'));
-    card.appendChild(criar('p', 'pf-msg', venceu ? 'Você coletou todo o lixo do gramado!' : S.motivo === 'parede' ? 'O caminhão bateu na borda do campo.' : 'O caminhão bateu nas próprias caçambas.'));
+    card.appendChild(criar('p', 'pf-msg', venceu ? (MODO === 'normal' ? `Meta cumprida: ${META_NORMAL} lixos coletados!` : 'Você coletou todo o lixo do gramado!') : S.motivo === 'parede' ? 'O caminhão bateu na borda do campo.' : 'O caminhão bateu nas próprias caçambas.'));
     if (recorde && S.pontos > 0) card.appendChild(criar('span', 'pf-recorde', 'Novo recorde!'));
     const caixa = criar('div', 'pf-caixa');
     caixa.appendChild(criar('strong', '', String(S.pontos)));
     caixa.appendChild(criar('span', '', S.pontos === 1 ? 'lixo coletado' : 'lixos coletados'));
     card.appendChild(caixa);
-    card.appendChild(criar('p', 'pf-msg', `Recorde: ${melhor}  ·  Nível alcançado: ${S.nivel}`));
+    card.appendChild(criar('p', 'pf-msg', MODO === 'normal'
+        ? `Recorde: ${melhor}  ·  Conclusões: ${conclusoes}`
+        : `Recorde: ${melhor}  ·  Nível alcançado: ${S.nivel}`));
     const botoes = criar('div', 'pf-botoes');
     const btn = (t, c, fn) => { const b = criar('button', 'pf-btn ' + c, t); b.type = 'button'; b.onclick = fn; return b; };
     botoes.appendChild(btn('Jogar de novo', 'principal', iniciar));
+    botoes.appendChild(btn('Escolher outro modo', 'secundario', () => { window.location.href = 'prejogo.html?jogo=caminhao'; }));
     botoes.appendChild(btn('Voltar ao Menu', 'secundario', () => { window.location.href = 'menu.html'; }));
     card.appendChild(botoes); overlay.appendChild(card); document.body.appendChild(overlay); card.focus();
 }

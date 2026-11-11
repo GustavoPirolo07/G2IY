@@ -21,6 +21,12 @@
         .hero-arte { flex: none; width: 88px; height: 88px; background: #fff; border: 3px solid var(--borda); border-radius: 22px; box-shadow: 0 6px 16px rgba(0,0,0,.08); display: grid; place-items: center; }
         .hero-arte svg { width: 70px; height: 70px; display: block; }
         h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; }
+        .modos { display: none; margin: 0 0 14px; }
+        .modos.ativo { display: block; }
+        .seg { display: flex; gap: 6px; background: #fff; padding: 5px; border-radius: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.06); }
+        .seg button { flex: 1; padding: 10px; border: none; border-radius: 10px; background: transparent; color: var(--verde); font-weight: 800; font-size: 1rem; cursor: pointer; transition: .15s; }
+        .seg button.sel { background: var(--verde); color: #fff; }
+        .modo-desc { margin: 8px 4px 0; font-size: 0.88rem; color: var(--suave); line-height: 1.35; }
         .objetivo { margin: 4px 0 0; color: var(--suave); font-size: 0.98rem; line-height: 1.35; }
 
         /* ---------- duas colunas ---------- */
@@ -91,6 +97,8 @@
             <p class="objetivo" id="objetivo"></p>
         </div>
     </header>
+
+    <div class="modos" id="modos"><div class="seg" id="seg" role="group" aria-label="Modo de jogo"></div><p class="modo-desc" id="modo-desc"></p></div>
 
     <main class="colunas">
         <section class="cartao" aria-labelledby="t-como">
@@ -209,11 +217,11 @@ const JOGOS = {
     reflorestar: {
         nome: 'Eco Reflorestar', arquivo: 'ecoReflorestar.html', ranking: 'arvores',
         objetivo: 'Deslize a semente e plante uma árvore em todos os quadrados livres.',
-        nota: 'Empate? Vale o menor tempo nas 10 fases perfeitas.',
+        nota: 'Empate? Vale o menor tempo nas 50 fases perfeitas.',
         passos: [
             [ICO.pedra, 'A semente <b>rola até bater</b> numa pedra ou na borda.'],
             [ICO.setas, '<b>Setas</b> do teclado ou <b>deslize o dedo</b> para escolher a direção.'],
-            [ICO.arvore, '<b>Menos jogadas, mais árvores</b>: até 3 por fase, em 10 fases.'],
+            [ICO.arvore, '<b>Menos jogadas, mais árvores</b>: até 3 por fase, em 50 fases.'],
             [ICO.lampada, 'Usar a <b>dica</b> limita a fase a <b>1 árvore</b>.']
         ]
     },
@@ -228,7 +236,11 @@ const JOGOS = {
     },
     caminhao: {
         nome: 'Eco Caminhão', arquivo: 'ecoCaminhao.html', ranking: 'pontos',
-        objetivo: 'Dirija o caminhão de lixo e recolha tudo o que estiver no gramado.',
+        objetivo: 'Dirija o caminhão de lixo e recolha o lixo espalhado pelo gramado.',
+        modos: [
+            { id: 'normal', nome: 'Normal', jogo: 'caminhao_normal', conclusoes: true, desc: 'A velocidade é sempre a mesma. Colete 60 lixos para zerar o jogo.' },
+            { id: 'hard', nome: 'Difícil', jogo: 'caminhao', conclusoes: false, desc: 'O caminhão acelera a cada lixo. Vá o mais longe que conseguir.' }
+        ],
         passos: [
             [ICO.setas, 'Use as <b>setas</b> ou os botões para virar o caminhão.'],
             [ICO.caixa, 'Cada lixo coletado <b>acrescenta uma caçamba</b>.'],
@@ -245,6 +257,7 @@ if (!jogo) { location.replace('menu.html'); }
 
 const $ = id => document.getElementById(id);
 function criar(tag, classe, texto) { const x = document.createElement(tag); if (classe) x.className = classe; if (texto !== undefined) x.textContent = texto; return x; }
+let modoAtual = null;
 const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 if (jogo) {
@@ -260,7 +273,23 @@ if (jogo) {
         $('passos').appendChild(li);
     });
     if (jogo.nota) { $('nota-rank').textContent = jogo.nota; $('nota-rank').hidden = false; }
-    $('btn-iniciar').onclick = () => { location.href = `${jogo.arquivo}?partida=1`; };
+    $('btn-iniciar').onclick = () => { location.href = `${jogo.arquivo}?partida=1` + (modoAtual ? `&modo=${modoAtual.id}` : ''); };
+    if (jogo.modos) {
+        $('modos').classList.add('ativo');
+        jogo.modos.forEach(m => {
+            const b = criar('button', '', m.nome); b.type = 'button'; b.dataset.id = m.id;
+            b.onclick = () => escolherModo(m.id);
+            $('seg').appendChild(b);
+        });
+        escolherModo(params.get('modo') === 'hard' ? 'hard' : 'normal', true);
+    }
+}
+
+function escolherModo(id, inicial) {
+    modoAtual = jogo.modos.find(m => m.id === id) || jogo.modos[0];
+    [...$('seg').children].forEach(b => { b.classList.toggle('sel', b.dataset.id === modoAtual.id); b.setAttribute('aria-pressed', b.dataset.id === modoAtual.id); });
+    $('modo-desc').textContent = modoAtual.desc;
+    if (!inicial && liberada) carregarTabela();
 }
 
 /* ---------- ranking ---------- */
@@ -286,6 +315,7 @@ function linhaRanking(l, tipo) {
         if (l.tempo_total) valor.appendChild(criar('small', '', `tempo ${mmss(l.tempo_total)}`));
     } else {
         valor.appendChild(document.createTextNode(`${l.melhor_pontuacao} pts`));
+        if (modoAtual && modoAtual.conclusoes && l.conclusoes > 0) valor.appendChild(criar('small', '', `${l.conclusoes} ${l.conclusoes === 1 ? 'conclusão' : 'conclusões'}`));
         if (tipo === 'pontos_tempo' && l.melhor_tempo_segundos) valor.appendChild(criar('small', '', `mais rápido: ${l.melhor_tempo_segundos}s`));
     }
     li.appendChild(valor);
@@ -303,13 +333,16 @@ function desenharRanking(linhas, tipo) {
     });
     $('ranking').innerHTML = ''; $('ranking').appendChild(ol);
 }
+let liberada = false;
+function carregarTabela() {
+    esqueleto();
+    const idRanking = modoAtual ? modoAtual.jogo : jogoId;
+    const busca = jogo.ranking === 'arvores' ? carregarRankingReflorestar(10) : carregarRanking(idRanking, 10);
+    busca.then(linhas => desenharRanking(linhas, jogo.ranking));
+}
 if (jogo) {
     esqueleto();
-    window.paginaLiberada.then(ok => {
-        if (!ok) return;
-        const busca = jogo.ranking === 'arvores' ? carregarRankingReflorestar(10) : carregarRanking(jogoId, 10);
-        busca.then(linhas => desenharRanking(linhas, jogo.ranking));
-    });
+    window.paginaLiberada.then(ok => { if (ok) { liberada = true; carregarTabela(); } });
 }
 </script>
 </body>
