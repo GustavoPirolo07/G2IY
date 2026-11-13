@@ -60,7 +60,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="protegerPagina.js"></script>
-    <script src="resultados.js"></script>
+    <script src="Resultados.js"></script>
     <script src="popupFim.js"></script>
     <script>
         const listaDePalavras = ["VIDRO", "LATAS", "PAPEL", "MUNDO", "CLIMA", "BIOMA", "CHUVA", "MATAS", "METAL", "PAMPA", "NUVEM", "SOLAR", "VERDE", "TERRA", "LIMPO", "ÁGUAS", "VIVER", "FAUNA", "FLORA", "LIXOS"];
@@ -101,6 +101,29 @@
             m.textContent = texto;
             clearTimeout(msgTimer);
             msgTimer = setTimeout(() => { m.textContent = ""; }, 2500);
+        }
+
+        // Barra de espaço = jogar de novo (no computador). O aviso aparece logo abaixo dos botões do popup.
+        function habilitarEspacoParaJogarDeNovo() {
+            const card = document.querySelector('#popup-fim .pf-card');
+            if (!card) return;
+            if (window.matchMedia('(pointer: fine)').matches) {   // quem joga no celular não vê o aviso
+                const dica = document.createElement('p');
+                dica.className = 'pf-msg';
+                dica.textContent = 'Dica: aperte a barra de espaço para jogar de novo.';
+                dica.style.cssText = 'margin: 12px 0 0; font-size: 0.8rem;';
+                card.appendChild(dica);
+            }
+            const abertoEm = performance.now();
+            const aoApertar = e => {
+                if (!document.getElementById('popup-fim')) { document.removeEventListener('keydown', aoApertar); return; }
+                if (e.code !== 'Space' || e.repeat) return;
+                e.preventDefault();
+                if (performance.now() - abertoEm < 600) return;   // evita reiniciar sem querer logo que o popup aparece
+                document.removeEventListener('keydown', aoApertar);
+                window.location.reload();
+            };
+            document.addEventListener('keydown', aoApertar);
         }
 
         function makeGuess() {
@@ -144,7 +167,7 @@
             if (guess === word) {
                 acabou = true;
                 const pontos = 110 - attempts * 10; // 1ª tentativa = 100, perde 10 por tentativa extra (6ª = 50)
-                Promise.allSettled([registrarResultado('adivinhacao', pontos), esperar(700)]).then(() =>
+                Promise.allSettled([registrarResultado('adivinhacao', pontos), esperar(700)]).then(() => {
                     mostrarPopupFim({
                         emoji: '💡',
                         titulo: 'Você acertou!',
@@ -152,12 +175,14 @@
                         pontos,
                         detalhes: [`Tentativas: ${attempts} de ${maxAttempts}`],
                         onJogarNovamente: () => window.location.reload()
-                    }));
+                    });
+                    habilitarEspacoParaJogarDeNovo();
+                });
                 return;
             }
             if (attempts === maxAttempts) {
                 acabou = true;
-                esperar(700).then(() =>
+                esperar(700).then(() => {
                     mostrarPopupFim({
                         emoji: '🌱',
                         titulo: 'Não foi dessa vez',
@@ -165,7 +190,9 @@
                         pontos: 0,
                         detalhes: ['Use as cores das letras como pista e tente de novo!'],
                         onJogarNovamente: () => window.location.reload()
-                    }));
+                    });
+                    habilitarEspacoParaJogarDeNovo();
+                });
             }
         }
     </script>

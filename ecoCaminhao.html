@@ -137,7 +137,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="supabaseClient.js"></script>
 <script src="protegerPagina.js"></script>
-<script src="resultados.js"></script>
+<script src="Resultados.js"></script>
 <script>
 /* ============================================================
    DADOS
@@ -460,32 +460,56 @@ function abrirFim() {
     Promise.race([registrar, new Promise(r => setTimeout(r, 2500))]).then(montarPopupFim);
 }
 
+// Barra de espaço = jogar de novo (no computador). O aviso aparece logo abaixo dos botões.
+function ativarEspacoParaJogarDeNovo(overlay, card, jogarDeNovo) {
+    if (window.matchMedia('(pointer: fine)').matches) {   // quem joga no celular não vê o aviso
+        const dica = criar('p', 'pf-msg', 'Dica: aperte a barra de espaço para jogar de novo.');
+        dica.style.cssText = 'margin: 12px 0 0; font-size: 0.8rem;';
+        card.appendChild(dica);
+    }
+    const abertoEm = performance.now();
+    const aoApertar = e => {
+        if (!document.body.contains(overlay)) { document.removeEventListener('keydown', aoApertar); return; }
+        if (e.code !== 'Space' || e.repeat) return;
+        e.preventDefault();
+        if (performance.now() - abertoEm < 600) return;   // evita reiniciar sem querer logo que o popup aparece
+        document.removeEventListener('keydown', aoApertar);
+        jogarDeNovo();
+    };
+    document.addEventListener('keydown', aoApertar);
+}
+
 function montarPopupFim() {
     const recorde = S.pontos > melhor;
     if (recorde) melhor = S.pontos;
     atualizarHud(false);
     const venceu = S.motivo === 'vitoria';
-    if (venceu) conclusoes++;
+    if (venceu && MODO === 'normal') conclusoes++;   // prestígio só existe no modo normal
     const overlay = criar('div'); overlay.id = 'popup-jogo';
     const card = criar('div', 'pf-card'); card.tabIndex = -1; card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
     card.appendChild(criar('div', 'pf-emoji', venceu ? '🏆' : '🚛'));
     card.appendChild(criar('h2', '', venceu ? 'Cidade limpa!' : 'Fim de jogo'));
     card.appendChild(criar('p', 'pf-msg', venceu ? (MODO === 'normal' ? `Meta cumprida: ${META_NORMAL} lixos coletados!` : 'Você coletou todo o lixo do gramado!') : S.motivo === 'parede' ? 'O caminhão bateu na borda do campo.' : 'O caminhão bateu nas próprias caçambas.'));
     if (recorde && S.pontos > 0) card.appendChild(criar('span', 'pf-recorde', 'Novo recorde!'));
-    if (venceu) { card.appendChild(document.createTextNode(' ')); card.appendChild(criar('span', 'pf-recorde', 'Novo prestígio! ⭐')); }
+    if (venceu && MODO === 'normal') { card.appendChild(document.createTextNode(' ')); card.appendChild(criar('span', 'pf-recorde', 'Novo prestígio! ⭐')); }
     const caixa = criar('div', 'pf-caixa');
     caixa.appendChild(criar('strong', '', String(S.pontos)));
     caixa.appendChild(criar('span', '', S.pontos === 1 ? 'lixo coletado' : 'lixos coletados'));
     card.appendChild(caixa);
-    // maior tamanho = caminhão inicial (3) + lixos do melhor recorde; prestígio = vezes em que o jogo foi zerado
-    card.appendChild(criar('p', 'pf-msg', `Maior tamanho: ${TAM_INICIAL + melhor}  ·  Prestígios: ${conclusoes}`));
-    if (MODO === 'hard') card.appendChild(criar('p', 'pf-msg', `Nível alcançado: ${S.nivel}`));
+    if (MODO === 'normal') {
+        // modo normal: maior tamanho = caminhão inicial (3) + lixos do melhor recorde; prestígio = vezes em que zerou o jogo
+        card.appendChild(criar('p', 'pf-msg', `Maior tamanho: ${TAM_INICIAL + melhor}  ·  Prestígios: ${conclusoes}`));
+    } else {
+        // modo difícil: pontuação, como sempre foi
+        card.appendChild(criar('p', 'pf-msg', `Recorde: ${melhor}  ·  Nível alcançado: ${S.nivel}`));
+    }
     const botoes = criar('div', 'pf-botoes');
     const btn = (t, c, fn) => { const b = criar('button', 'pf-btn ' + c, t); b.type = 'button'; b.onclick = fn; return b; };
     botoes.appendChild(btn('Jogar de novo', 'principal', iniciar));
     botoes.appendChild(btn('Escolher outro modo', 'secundario', () => { window.location.href = 'prejogo.html?jogo=caminhao'; }));
     botoes.appendChild(btn('Voltar ao Menu', 'secundario', () => { window.location.href = 'menu.html'; }));
     card.appendChild(botoes); overlay.appendChild(card); document.body.appendChild(overlay); card.focus();
+    ativarEspacoParaJogarDeNovo(overlay, card, iniciar);
 }
 
 /* ---------- entrada ---------- */

@@ -222,7 +222,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="supabaseClient.js"></script>
 <script src="protegerPagina.js"></script>
-<script src="resultados.js"></script>
+<script src="Resultados.js"></script>
 <script>
 /* ============================================================
    DADOS
@@ -559,6 +559,25 @@ function fimDeJogo() {
     Promise.race([registrar, new Promise(r => setTimeout(r, 2500))]).then(montarPopupFim);
 }
 
+// Barra de espaço = jogar de novo (no computador). O aviso aparece logo abaixo dos botões.
+function ativarEspacoParaJogarDeNovo(overlay, card, jogarDeNovo) {
+    if (window.matchMedia('(pointer: fine)').matches) {   // quem joga no celular não vê o aviso
+        const dica = criar('p', 'pf-msg', 'Dica: aperte a barra de espaço para jogar de novo.');
+        dica.style.cssText = 'margin: 12px 0 0; font-size: 0.8rem;';
+        card.appendChild(dica);
+    }
+    const abertoEm = performance.now();
+    const aoApertar = e => {
+        if (!document.body.contains(overlay)) { document.removeEventListener('keydown', aoApertar); return; }
+        if (e.code !== 'Space' || e.repeat) return;
+        e.preventDefault();
+        if (performance.now() - abertoEm < 600) return;   // evita reiniciar sem querer logo que o popup aparece
+        document.removeEventListener('keydown', aoApertar);
+        jogarDeNovo();
+    };
+    document.addEventListener('keydown', aoApertar);
+}
+
 function montarPopupFim() {
     const recorde = S.pontos > melhor;
     if (recorde) melhor = S.pontos;
@@ -583,6 +602,7 @@ function montarPopupFim() {
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     card.focus();
+    ativarEspacoParaJogarDeNovo(overlay, card, () => { overlay.remove(); iniciarJogo(); });
 }
 
 /* ---------- entrada: botões e teclado ---------- */

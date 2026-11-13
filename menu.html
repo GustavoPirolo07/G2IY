@@ -251,7 +251,7 @@
                     <div class="game-info">
                         <span class="game-title">🚛 Eco Caminhão</span>
                         <span class="game-desc">Recolha o lixo da cidade e aumente seu caminhão sem bater</span>
-                        <span class="game-best" id="best-caminhao">🏆 Maior tamanho: Normal — · Difícil —</span>
+                        <span class="game-best" id="best-caminhao">🏆 Normal: tamanho — · Difícil: —</span>
                     </div>
                     <span class="game-icon">➔</span>
                 </a>
@@ -367,7 +367,7 @@ async function atualizarMelhores() {
             // Eco Caminhão: modo normal (com conclusões) e modo difícil
             const cn = melhores.caminhao_normal, cd = melhores.caminhao;
             document.getElementById('best-caminhao').textContent =
-                `🏆 Maior tamanho: Normal ${cn ? 3 + cn.melhor_pontuacao : '—'}${cn && cn.conclusoes ? ' (⭐ ' + cn.conclusoes + ')' : ''} · Difícil ${cd ? 3 + cd.melhor_pontuacao : '—'}`;
+                `🏆 Normal: tamanho ${cn ? 3 + cn.melhor_pontuacao : '—'}${cn && cn.conclusoes ? ' (⭐ ' + cn.conclusoes + ')' : ''} · Difícil: ${cd ? cd.melhor_pontuacao + ' pts' : '—'}`;
             document.getElementById('best-reflorestar').textContent = `🌳 Árvores conquistadas: ${arvores} de ${REFLORESTAR_OTIMOS.length * 3}`;
             ['caca_palavras', 'adivinhacao', 'quiz', 'coleta_seletiva'].forEach(jogo => {
                 const el = document.getElementById('best-' + jogo);
